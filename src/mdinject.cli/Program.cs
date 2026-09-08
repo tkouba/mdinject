@@ -1,5 +1,6 @@
 using Mdinject.Cli.Commands;
 using Mdinject.Core;
+using Mdinject.Core.Configuration;
 using Mdinject.Docx;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,8 @@ public sealed class Program
 
         var services = new ServiceCollection();
         services.AddSingleton<ITemplateDocumentFactory, DocxTemplateDocumentFactory>();
+        services.AddSingleton<IStyleMappingConfigurationGenerator, StyleMappingConfigurationGenerator>();
+        services.AddSingleton<IStyleMappingConfigurationWriter, StyleMappingConfigurationWriter>();
 
         using var registrar = new DependencyInjectionRegistrar(services);
         var app = new CommandApp(registrar);
@@ -44,6 +47,12 @@ public sealed class Program
             {
                 branch.SetDescription("List information about a template document.");
                 branch.AddCommand<ListStylesCommand>("styles");
+            });
+
+            config.AddBranch("create", branch =>
+            {
+                branch.SetDescription("Create files from a template document.");
+                branch.AddCommand<CreateConfigurationCommand>("configuration");
             });
         });
         return await app.RunAsync(args);

@@ -99,6 +99,26 @@ blocks:
   paragraph: "Texte Standard"
 ```
 
+### Default resolution
+
+A construct left out of the configuration doesn't always behave the same way:
+
+- **Bold, italic** — always fall back to Word's own direct character formatting (the same as
+  pressing Ctrl+B/Ctrl+I), whether or not a mapping table is given at all.
+- **Paragraph, table, bullet lists** — resolve to whichever style the template itself flags as the
+  default for that kind (the same style Word applies when nothing is chosen explicitly), so these
+  work out of the box even without a configuration file.
+- **Headings** — no unambiguous default exists, so mdinject guesses the canonical Word name
+  (`"heading 1"`, `"heading 2"`, ...). If the template doesn't define that level, this only becomes
+  an error once a document actually uses that heading — not upfront.
+- **Code (block and inline)** — has no native Word equivalent to fall back to, so it must be
+  configured explicitly if a document uses code; otherwise, it errors when encountered. Explicitly
+  configuring an empty value (`code:` with nothing after it) is different from leaving the key out:
+  it deliberately opts out of formatting rather than being an error.
+
+Run `mdinject create configuration` (see [Auxiliary commands](#auxiliary-commands)) to generate a
+starter file with everything mdinject can resolve for a specific template already filled in.
+
 ## Placeholders
 
 Default syntax:
@@ -166,6 +186,19 @@ Normln  | Normal    |         | paragraph |
 Command line
 ```bash
 mdinject list styles template.docx
+```
+
+### create configuration
+
+Generates a starter style-mapping YAML file for a specific template: constructs with a genuine
+default (paragraph, table, bullet lists) are filled in with the template's own default style,
+headings are filled in when the template defines the canonical Word name, and anything mdinject
+can't resolve (like code) is left blank for you to fill in — see
+[Default resolution](#default-resolution).
+
+Command line
+```bash
+mdinject create configuration template.docx --output style-mapping.yaml
 ```
 
 ### list placeholders
