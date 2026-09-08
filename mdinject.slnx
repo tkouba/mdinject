@@ -1,0 +1,7 @@
+<Solution>
+    <Project Path="src/mdinject.cli/mdinject.cli.csproj" />
+    <Project Path="src/mdinject.core/mdinject.core.csproj" />
+    <Project Path="src/mdinject.docx/mdinject.docx.csproj" />
+    <Project Path="tests/mdinject.core.tests/mdinject.core.tests.csproj" />
+    <Project Path="tests/mdinject.docx.tests/mdinject.docx.tests.csproj" />
+</Solution>

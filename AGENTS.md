@@ -86,7 +86,9 @@ Breaking changes require explicit justification.
 ## Technical Stack
 
 * net 10 (or higher)
-* Microsoft.Extension.Logging
+* Microsoft.Extensions.Configuration
+* Microsoft.Extensions.Logging
+* Microsoft.Extensions.DependencyInjection
 * YamlDotNet
 * NReco.Logging.File
 
@@ -100,7 +102,10 @@ Breaking changes require explicit justification.
 
 ### CLI
 
+* Microsoft.Extensions.Configuration.FileExtensions
+* Microsoft.Extensions.Configuration.UserSecrets
 * Spectre.Console.Cli
+* Spectre.Console.Cli.Extensions.DependencyInjection
 
 ## Project Structure
 

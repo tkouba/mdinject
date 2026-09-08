@@ -1,0 +1,25 @@
+<Project>
+
+	<Target Name="AddGitTagVersion"
+			BeforeTargets="GenerateAssemblyInfo;
+			GetAssemblyVersion;
+			CoreGenerateAssemblyInfo">
+
+		<Exec Condition="'$(GitTag)' == ''"
+			  Command="git describe --tags --match=v[0-9]* --abbrev=0"
+			  ConsoleToMSBuild="true">
+			<Output TaskParameter="ConsoleOutput" PropertyName="GitTag" />
+		</Exec>
+
+		<PropertyGroup>
+			<Version>$([System.String]::Copy('$(GitTag)').Trim().TrimStart('v'))</Version>
+		</PropertyGroup>
+
+		<!-- add -debug for Debug configuration when version does not already contain a hyphen -->
+		<PropertyGroup Condition="'$(Configuration)' == 'Debug' AND !$([System.String]::Copy('$(Version)').Contains('-'))">
+			<Version>$(Version)-local</Version>
+		</PropertyGroup>
+
+	</Target>
+
+</Project>
