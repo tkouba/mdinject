@@ -10,6 +10,7 @@ Prefer:
 - records where appropriate
 - dependency injection
 - nullable reference types
+- English comments
 
 Avoid:
 
@@ -25,6 +26,13 @@ Avoid:
 ### Null and length checks
 - Prefer explicit checks: `value != null && value.Length > 0` over pattern matching `value is { Length: > 0 }`
 
+### Console applications
+- Do not use top-level statements, use explicit `Program` class with `Main` method.
+- Prefer async `Main`
+
+### Code refactoring
+- **Keep comments** → Never remove comments from code, regardless of language. Do not translate comments unless the user asks for translation.
+
 ## Testing Expectations
 
 Before merging:
@@ -32,6 +40,10 @@ Before merging:
 - Unit tests pass
 - Disposal tested (where appropriate and convenient — skip if it would require a mocking library or invasive testability seams for a minor case)
 - Cancellation tested (where appropriate and convenient — skip if it would require a mocking library or invasive testability seams for a minor case)
+
+## Version Management
+
+Git Tag-based versioning
 
 ## Backward Compatibility
 
