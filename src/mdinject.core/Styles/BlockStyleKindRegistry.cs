@@ -28,7 +28,6 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Heading9] = StyleKind.Paragraph,
         [BlockStyleKey.Paragraph] = StyleKind.Paragraph,
         [BlockStyleKey.CodeBlock] = StyleKind.Paragraph,
-        [BlockStyleKey.BulletList] = StyleKind.Numbering,
         [BlockStyleKey.Table] = StyleKind.Table,
     };
 
@@ -36,7 +35,6 @@ internal static class BlockStyleKindRegistry
     {
         BlockStyleKey.Paragraph,
         BlockStyleKey.Table,
-        BlockStyleKey.BulletList,
     };
 
     // Word's built-in style names are stored in English internally regardless of UI locale,

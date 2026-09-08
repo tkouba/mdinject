@@ -2,6 +2,9 @@ namespace Mdinject.Core.Configuration;
 
 /// <summary>
 /// Block-level markdown constructs that can be mapped to a template paragraph style, mirroring the internal Document Model.
+/// Bullet/numbered lists are deliberately absent: bullets come from a paragraph's direct
+/// <c>w:numPr</c>/<c>w:numId</c> reference into numbering.xml, not from a named style - the same
+/// category as bold/italic direct formatting, not style resolution. Not modeled yet.
 /// </summary>
 public enum BlockStyleKey
 {
@@ -15,7 +18,6 @@ public enum BlockStyleKey
     Heading8,
     Heading9,
     Paragraph,
-    BulletList,
     Table,
     CodeBlock,
 }

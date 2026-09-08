@@ -13,7 +13,6 @@ public sealed class StyleMappingConfigurationGeneratorTests
         new StyleInfo("Nadpis1", "heading 1", StyleKind.Paragraph, false, "Normal", [], false),
         new StyleInfo("Nadpis3", "heading 3", StyleKind.Paragraph, false, "Normal", [], false),
         new StyleInfo("Normlntabulka", "Normal Table", StyleKind.Table, true, null, [], false),
-        new StyleInfo("Bezseznamu", "No List", StyleKind.Numbering, true, null, [], false),
     ];
 
     [Fact]
@@ -25,7 +24,6 @@ public sealed class StyleMappingConfigurationGeneratorTests
 
         Assert.Equal("Normal", mapping.Blocks[BlockStyleKey.Paragraph]);
         Assert.Equal("Normal Table", mapping.Blocks[BlockStyleKey.Table]);
-        Assert.Equal("No List", mapping.Blocks[BlockStyleKey.BulletList]);
     }
 
     [Fact]

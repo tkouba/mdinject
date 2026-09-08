@@ -105,9 +105,9 @@ A construct left out of the configuration doesn't always behave the same way:
 
 - **Bold, italic** — always fall back to Word's own direct character formatting (the same as
   pressing Ctrl+B/Ctrl+I), whether or not a mapping table is given at all.
-- **Paragraph, table, bullet lists** — resolve to whichever style the template itself flags as the
-  default for that kind (the same style Word applies when nothing is chosen explicitly), so these
-  work out of the box even without a configuration file.
+- **Paragraph, table** — resolve to whichever style the template itself flags as the default for
+  that kind (the same style Word applies when nothing is chosen explicitly), so these work out of
+  the box even without a configuration file.
 - **Headings** — no unambiguous default exists, so mdinject guesses the canonical Word name
   (`"heading 1"`, `"heading 2"`, ...). If the template doesn't define that level, this only becomes
   an error once a document actually uses that heading — not upfront.
@@ -115,6 +115,9 @@ A construct left out of the configuration doesn't always behave the same way:
   configured explicitly if a document uses code; otherwise, it errors when encountered. Explicitly
   configuring an empty value (`code:` with nothing after it) is different from leaving the key out:
   it deliberately opts out of formatting rather than being an error.
+- **Bullet/numbered lists** — not part of style mapping at all. Bullets come from a paragraph's
+  direct `w:numPr`/`w:numId` reference into `numbering.xml`, the same category as bold/italic direct
+  formatting rather than a named style, and aren't modeled yet.
 
 Run `mdinject create configuration` (see [Auxiliary commands](#auxiliary-commands)) to generate a
 starter file with everything mdinject can resolve for a specific template already filled in.

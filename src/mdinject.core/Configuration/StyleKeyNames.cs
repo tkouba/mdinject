@@ -20,7 +20,6 @@ internal static class StyleKeyNames
             ["heading8"] = BlockStyleKey.Heading8,
             ["heading9"] = BlockStyleKey.Heading9,
             ["paragraph"] = BlockStyleKey.Paragraph,
-            ["bulletList"] = BlockStyleKey.BulletList,
             ["table"] = BlockStyleKey.Table,
             ["codeBlock"] = BlockStyleKey.CodeBlock,
         };

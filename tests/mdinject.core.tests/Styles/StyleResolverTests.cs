@@ -15,7 +15,6 @@ public sealed class StyleResolverTests
         new StyleInfo("Standardnpsmoodstavce", "Default Paragraph Font", StyleKind.Character, true, null, [], false),
         new StyleInfo("VYRAZNE", "Strong", StyleKind.Character, false, "Standardnpsmoodstavce", ["Bold Text"], false),
         new StyleInfo("NormalTable", "Normal Table", StyleKind.Table, true, null, [], false),
-        new StyleInfo("NoList", "No List", StyleKind.Numbering, true, null, [], false),
     ];
 
     [Fact]
@@ -84,14 +83,6 @@ public sealed class StyleResolverTests
         var styleId = resolver.ResolveBlockStyle(BlockStyleKey.Table, StyleMappingConfiguration.Empty, TemplateStyles);
 
         Assert.Equal("NormalTable", styleId);
-    }
-
-    [Fact]
-    public void ResolveBlockStyle_UnconfiguredBulletList_ResolvesTemplateDefaultNumberingStyle()
-    {
-        var styleId = resolver.ResolveBlockStyle(BlockStyleKey.BulletList, StyleMappingConfiguration.Empty, TemplateStyles);
-
-        Assert.Equal("NoList", styleId);
     }
 
     [Fact]

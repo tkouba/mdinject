@@ -1,6 +1,8 @@
 using Mdinject.Cli.Commands;
 using Mdinject.Core;
 using Mdinject.Core.Configuration;
+using Mdinject.Core.DocumentModel;
+using Mdinject.Core.Styles;
 using Mdinject.Docx;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +29,10 @@ public sealed class Program
         services.AddSingleton<ITemplateDocumentFactory, DocxTemplateDocumentFactory>();
         services.AddSingleton<IStyleMappingConfigurationGenerator, StyleMappingConfigurationGenerator>();
         services.AddSingleton<IStyleMappingConfigurationWriter, StyleMappingConfigurationWriter>();
+        services.AddSingleton<IStyleMappingConfigurationLoader, StyleMappingConfigurationLoader>();
+        services.AddSingleton<IStyleResolver, StyleResolver>();
+        services.AddSingleton<IMarkdownDocumentParser, MarkdownDocumentParser>();
+        services.AddSingleton<IDocumentInjector, DocxInjector>();
 
         using var registrar = new DependencyInjectionRegistrar(services);
         var app = new CommandApp(registrar);
@@ -55,6 +61,7 @@ public sealed class Program
                 branch.AddCommand<CreateConfigurationCommand>("configuration");
             });
         });
+        app.SetDefaultCommand<InjectCommand>();
         return await app.RunAsync(args);
     }
 }
