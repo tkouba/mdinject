@@ -1,3 +1,6 @@
+using Mdinject.Cli.Commands;
+using Mdinject.Core;
+using Mdinject.Docx;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
@@ -20,7 +23,7 @@ public sealed class Program
             ;
 
         var services = new ServiceCollection();
-
+        services.AddSingleton<ITemplateDocumentFactory, DocxTemplateDocumentFactory>();
 
         using var registrar = new DependencyInjectionRegistrar(services);
         var app = new CommandApp(registrar);
@@ -37,7 +40,11 @@ public sealed class Program
 
             config.SetApplicationVersion(versionInfo.ToString());
 
-
+            config.AddBranch("list", branch =>
+            {
+                branch.SetDescription("List information about a template document.");
+                branch.AddCommand<ListStylesCommand>("styles");
+            });
         });
         return await app.RunAsync(args);
     }
