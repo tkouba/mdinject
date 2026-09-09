@@ -21,4 +21,13 @@ public interface IStyleResolver
     /// </summary>
     /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
     InlineStyleResolution ResolveInlineStyle(InlineStyleKey key, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
+
+    /// <summary>
+    /// Resolves the blockquote block: a named style (configured, or a guessed canonical "Quote"
+    /// match), or a direct-indent fallback when neither is available - see
+    /// <see cref="BlockquoteStyleResolution"/>. Unlike <see cref="ResolveBlockStyle"/>, this never
+    /// errors for being unconfigured.
+    /// </summary>
+    /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
+    BlockquoteStyleResolution ResolveBlockquoteStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
 }

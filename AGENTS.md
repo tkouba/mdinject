@@ -200,6 +200,7 @@ Document
  ├─ Heading(level=1)
  ├─ Paragraph
  ├─ BulletList
+ ├─ Blockquote
  ├─ Table
  └─ CodeBlock
 ```
@@ -281,6 +282,14 @@ are rejected. Rendered as a native Word hyperlink (clickable regardless of confi
 `link` style mapping only controls its appearance - unconfigured, it guesses the canonical
 `"Hyperlink"` character style name (falling back to unstyled if the template doesn't define it)
 rather than erroring like `code` does.
+
+### Blockquotes
+
+`> quoted text`, one or more paragraphs (a blank `>` line starts a new paragraph within the same
+quote); nested constructs (lists, further blockquotes, ...) aren't supported yet. Like links, an
+unconfigured blockquote never errors: mdinject guesses the canonical `"Quote"` paragraph style name,
+falling back to direct paragraph indentation (`w:ind w:left="720"`) with a warning if the template
+doesn't define it.
 
 ## Image Strategy
 

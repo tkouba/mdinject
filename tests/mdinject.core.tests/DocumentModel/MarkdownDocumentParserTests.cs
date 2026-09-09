@@ -71,6 +71,39 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
+    public void Parse_Blockquote_CapturesSingleParagraph()
+    {
+        var document = parser.Parse("> Quoted text.");
+
+        var blockquote = Assert.IsType<DocumentBlock.Blockquote>(Assert.Single(document.Blocks));
+
+        Assert.Equal("Quoted text.", Assert.Single(Assert.Single(blockquote.Paragraphs)).Text);
+    }
+
+    [Fact]
+    public void Parse_Blockquote_CapturesMultipleParagraphs()
+    {
+        var document = parser.Parse(
+            """
+            > First paragraph.
+            >
+            > Second paragraph.
+            """);
+
+        var blockquote = Assert.IsType<DocumentBlock.Blockquote>(Assert.Single(document.Blocks));
+
+        Assert.Equal(2, blockquote.Paragraphs.Count);
+        Assert.Equal("First paragraph.", Assert.Single(blockquote.Paragraphs[0]).Text);
+        Assert.Equal("Second paragraph.", Assert.Single(blockquote.Paragraphs[1]).Text);
+    }
+
+    [Fact]
+    public void Parse_BlockquoteWithNestedList_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("> - Item A\n> - Item B"));
+    }
+
+    [Fact]
     public void Parse_Link_CapturesUrlOnEachSpan()
     {
         var document = parser.Parse("Plain [visit **us**](https://example.com/page) done.");

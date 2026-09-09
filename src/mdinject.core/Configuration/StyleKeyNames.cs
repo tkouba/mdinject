@@ -22,6 +22,7 @@ internal static class StyleKeyNames
             ["paragraph"] = BlockStyleKey.Paragraph,
             ["table"] = BlockStyleKey.Table,
             ["codeBlock"] = BlockStyleKey.CodeBlock,
+            ["blockquote"] = BlockStyleKey.Blockquote,
         };
 
     public static readonly IReadOnlyDictionary<string, InlineStyleKey> InlineKeysByName =

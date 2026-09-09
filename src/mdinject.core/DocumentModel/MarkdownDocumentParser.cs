@@ -6,12 +6,12 @@ namespace Mdinject.Core.DocumentModel;
 
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
-/// only the "core skeleton" constructs for now: headings, paragraphs, unordered lists, fenced/indented
-/// code blocks, and inline bold/italic/code/links. Anything else (tables, images, ordered lists,
-/// alerts) throws <see cref="MarkdownConversionException"/> rather than silently dropping content.
-/// Links must resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful
-/// target once the content is injected into a Word document, so they're rejected rather than
-/// silently kept as broken links.
+/// only the "core skeleton" constructs for now: headings, paragraphs, unordered lists, blockquotes,
+/// fenced/indented code blocks, and inline bold/italic/code/links. Anything else (tables, images,
+/// ordered lists, alerts) throws <see cref="MarkdownConversionException"/> rather than silently
+/// dropping content. Links must resolve to an absolute URL (http(s), mailto, ...) - relative links
+/// have no meaningful target once the content is injected into a Word document, so they're rejected
+/// rather than silently kept as broken links.
 /// </summary>
 public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
 {
@@ -35,9 +35,25 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             HeadingBlock heading => new DocumentBlock.Heading(heading.Level, ConvertInlines(heading.Inline)),
             ParagraphBlock paragraph => new DocumentBlock.Paragraph(ConvertInlines(paragraph.Inline)),
             ListBlock list => ConvertList(list),
+            QuoteBlock quote => ConvertBlockquote(quote),
             CodeBlock code => new DocumentBlock.CodeBlock(ExtractCodeText(code)),
             _ => throw new MarkdownConversionException($"Unsupported Markdown block type '{block.GetType().Name}'."),
         };
+    }
+
+    private static DocumentBlock.Blockquote ConvertBlockquote(QuoteBlock quote)
+    {
+        var paragraphs = new List<IReadOnlyList<InlineSpan>>();
+
+        foreach (var childBlock in quote)
+        {
+            if (childBlock is not ParagraphBlock paragraph)
+                throw new MarkdownConversionException($"Unsupported blockquote content type '{childBlock.GetType().Name}'.");
+
+            paragraphs.Add(ConvertInlines(paragraph.Inline));
+        }
+
+        return new DocumentBlock.Blockquote(paragraphs);
     }
 
     private static DocumentBlock.BulletList ConvertList(ListBlock list)

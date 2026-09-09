@@ -68,6 +68,29 @@ public sealed class StyleMappingConfigurationGeneratorTests
     }
 
     [Fact]
+    public void Generate_LeavesBlockquoteBlankWhenNoCanonicalQuoteStyleExists()
+    {
+        var mapping = generator.Generate(TemplateStyles);
+
+        Assert.True(mapping.Blocks.ContainsKey(BlockStyleKey.Blockquote));
+        Assert.Null(mapping.Blocks[BlockStyleKey.Blockquote]);
+    }
+
+    [Fact]
+    public void Generate_FillsBlockquoteWhenCanonicalQuoteStyleExists()
+    {
+        IReadOnlyList<StyleInfo> stylesWithQuote =
+        [
+            .. TemplateStyles,
+            new StyleInfo("MyQuote", "Quote", StyleKind.Paragraph, false, "Normal", [], false),
+        ];
+
+        var mapping = generator.Generate(stylesWithQuote);
+
+        Assert.Equal("Quote", mapping.Blocks[BlockStyleKey.Blockquote]);
+    }
+
+    [Fact]
     public void Generate_LeavesAllInlinesBlank()
     {
         var mapping = generator.Generate(TemplateStyles);

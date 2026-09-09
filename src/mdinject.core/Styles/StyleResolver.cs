@@ -79,4 +79,28 @@ public sealed class StyleResolver : IStyleResolver
 
         throw new StyleResolutionException($"Inline '{key}' is not configured and has no usable default.");
     }
+
+    public BlockquoteStyleResolution ResolveBlockquoteStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    {
+        if (configuration.Blocks.TryGetValue(BlockStyleKey.Blockquote, out var configuredReference))
+        {
+            var configuredStyle = StyleLookup.FindByReference(configuredReference, StyleKind.Paragraph, templateStyles);
+            if (configuredStyle == null)
+                throw new StyleResolutionException($"Could not resolve configured style '{configuredReference}' for block 'Blockquote' in the template.");
+
+            return new BlockquoteStyleResolution.NamedStyle(configuredStyle.Id);
+        }
+
+        // Unlike CodeBlock, a blockquote is renderable without any named style at all (as an
+        // indented paragraph), so a fully absent key isn't an error: guess Word's own canonical
+        // paragraph style name ("Quote") and fall back to direct indentation - never a throw - if
+        // the template doesn't define it.
+        var guessedStyle = StyleLookup.FindByReference(BlockStyleKindRegistry.DefaultNames[BlockStyleKey.Blockquote], StyleKind.Paragraph, templateStyles);
+        if (guessedStyle != null)
+            return new BlockquoteStyleResolution.NamedStyle(guessedStyle.Id);
+
+        return new BlockquoteStyleResolution.DirectIndent(
+            "Template has no 'Quote' style; blockquotes will be indented directly instead. " +
+            "Configure 'blockquote' explicitly to silence this warning.");
+    }
 }

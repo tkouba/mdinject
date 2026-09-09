@@ -206,6 +206,54 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_BlockquoteWithConfiguredStyle_AppliesNamedStyleToEachParagraph()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote(
+            [
+                [new InlineSpan("First", false, false, false)],
+                [new InlineSpan("Second", false, false, false)],
+            ]),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Blockquote] = "Code" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraphs = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>()
+            .Where(p => GetText(p) is "First" or "Second")
+            .ToList();
+
+        Assert.Equal(2, paragraphs.Count);
+        Assert.All(paragraphs, p => Assert.Equal("CodeParagraph", p.ParagraphProperties?.ParagraphStyleId?.Val));
+        Assert.All(paragraphs, p => Assert.Null(p.ParagraphProperties?.Indentation));
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public async Task InjectAsync_BlockquoteWithoutConfiguration_IndentsDirectlyAndReturnsWarning()
+    {
+        // The test template defines no "Quote" style, so this falls back to direct indentation.
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote([[new InlineSpan("Quoted", false, false, false)]]),
+        ]);
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "Quoted");
+
+        Assert.Null(paragraph.ParagraphProperties?.ParagraphStyleId);
+        Assert.Equal("720", paragraph.ParagraphProperties?.Indentation?.Left);
+        Assert.Single(warnings);
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);

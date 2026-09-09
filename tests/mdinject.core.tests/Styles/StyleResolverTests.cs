@@ -215,4 +215,52 @@ public sealed class StyleResolverTests
         Assert.Throws<StyleResolutionException>(
             () => resolver.ResolveInlineStyle(InlineStyleKey.Bold, configuration, TemplateStyles));
     }
+
+    [Fact]
+    public void ResolveBlockquoteStyle_Unconfigured_GuessesCanonicalQuoteStyle()
+    {
+        // TemplateStyles already defines a paragraph style named "Quote" ("MyQuote").
+        var resolution = resolver.ResolveBlockquoteStyle(StyleMappingConfiguration.Empty, TemplateStyles);
+
+        var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("MyQuote", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveBlockquoteStyle_Unconfigured_NoQuoteStyleInTemplate_ReturnsDirectIndentWithWarning()
+    {
+        IReadOnlyList<StyleInfo> stylesWithoutQuote =
+        [
+            new StyleInfo("Normal", "Normal", StyleKind.Paragraph, true, null, [], false),
+        ];
+
+        var resolution = resolver.ResolveBlockquoteStyle(StyleMappingConfiguration.Empty, stylesWithoutQuote);
+
+        var directIndent = Assert.IsType<BlockquoteStyleResolution.DirectIndent>(resolution);
+        Assert.NotNull(directIndent.Warning);
+    }
+
+    [Fact]
+    public void ResolveBlockquoteStyle_WithConfiguredAlias_ResolvesNamedStyle()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Blockquote] = "H1" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var resolution = resolver.ResolveBlockquoteStyle(configuration, TemplateStyles);
+
+        var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("Heading1", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveBlockquoteStyle_WithUnresolvableConfiguredReference_ThrowsStyleResolutionException()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Blockquote] = "No Such Style" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        Assert.Throws<StyleResolutionException>(
+            () => resolver.ResolveBlockquoteStyle(configuration, TemplateStyles));
+    }
 }

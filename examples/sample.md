@@ -23,6 +23,8 @@ Exstinctaque ducem, parat. Pendent Achille ventis movent.
 Sed usus lympha Hylen ponti utile numina, isse possit et funere gradibus! Arbore
 non natus sua nymphas nostrum pedicis.
 
+> Lorem markdownum aequore mentis fide nemus contingere ruptosque Mulciber.
+
 ## Lucida rursus
 
 Lorem markdownum tamen. Sed ignari ut in vel deriguit Troiae. Deus plura
@@ -139,6 +141,6 @@ iam Laomedonque aperto iusta maestissimus ludit squalentia, das natae.
 Quadriiugo sonum umbram occupet, sed abibas parte sororibus ablati sono altos,
 lactantes partim.
 
-[Sample URL](https://github.com)
+[GitHub](https://github.com)
 
 My favorite search engine is [Duck Duck Go](https://duckduckgo.com).

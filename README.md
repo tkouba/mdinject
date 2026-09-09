@@ -65,6 +65,7 @@ By default, mdinject refuses to overwrite an existing `--output` file. Pass `--f
 - Paragraphs
 - Bullet lists
 - Numbered lists
+- Blockquotes
 - Tables
 - Code blocks
 - Images
@@ -88,6 +89,7 @@ blocks:
   codeBlock: "Code"
   table: "Table Grid"
   warning: "YellowParagraph"
+  blockquote: "Quote"
 inlines:
   bold: 
   italic:
@@ -128,6 +130,11 @@ A construct left out of the configuration doesn't always behave the same way:
   styling, even if the template does define a `Hyperlink` style. Only absolute URLs
   (`https://...`, `mailto:...`, ...) are supported — relative links have no meaningful target once
   injected into a Word document and are rejected.
+- **Blockquotes** — like links, a blockquote never errors for being unconfigured: mdinject guesses
+  the canonical Word name (`"Quote"`) and uses it if the template defines it, otherwise each
+  quoted paragraph is indented directly instead (the same category of exception as bold/italic
+  direct formatting) and a warning is printed. Unlike links, there's no way to configure an explicit
+  blank opt-out for a block style — an absent `blockquote` key and an empty one behave the same.
 - **Bullet/numbered lists** — not part of style mapping at all. Bullets come from a paragraph's
   direct `w:numPr`/`w:numId` reference into `numbering.xml`, the same category as bold/italic direct
   formatting rather than a named style, and aren't modeled yet.

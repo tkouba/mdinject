@@ -11,7 +11,7 @@ namespace Mdinject.Docx;
 
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
-/// placeholder paragraph. Supports headings, paragraphs, code blocks, and inline
+/// placeholder paragraph. Supports headings, paragraphs, blockquotes, code blocks, and inline
 /// bold/italic/code/links so far - bullet lists (and anything else in the document model) throw
 /// <see cref="NotSupportedException"/> until a later pass adds them.
 /// </summary>
@@ -109,6 +109,11 @@ public sealed class DocxInjector : IDocumentInjector
                 yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles, mainPart, warnings);
                 yield break;
 
+            case DocumentBlock.Blockquote blockquote:
+                foreach (var paragraph in BuildBlockquoteParagraphs(blockquote, configuration, templateStyles, mainPart, warnings))
+                    yield return paragraph;
+                yield break;
+
             case DocumentBlock.CodeBlock codeBlock:
                 yield return BuildCodeParagraph(codeBlock, configuration, templateStyles);
                 yield break;
@@ -145,6 +150,32 @@ public sealed class DocxInjector : IDocumentInjector
             paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
 
         return paragraph;
+    }
+
+    private IEnumerable<Paragraph> BuildBlockquoteParagraphs(DocumentBlock.Blockquote blockquote, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
+    {
+        var resolution = styleResolver.ResolveBlockquoteStyle(configuration, templateStyles);
+
+        if (resolution is BlockquoteStyleResolution.DirectIndent directIndent)
+            warnings.Add(directIndent.Warning);
+
+        foreach (var content in blockquote.Paragraphs)
+        {
+            var paragraphProperties = resolution switch
+            {
+                BlockquoteStyleResolution.NamedStyle namedStyle => new ParagraphProperties(new ParagraphStyleId { Val = namedStyle.StyleId }),
+                // No named "Quote" style available: indent directly instead, same exception to
+                // "no direct formatting" that bold/italic get for lack of any other option.
+                _ => new ParagraphProperties(new Indentation { Left = "720" }),
+            };
+
+            var paragraph = new Paragraph(paragraphProperties);
+
+            foreach (var span in content)
+                paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
+
+            yield return paragraph;
+        }
     }
 
     private Paragraph BuildCodeParagraph(DocumentBlock.CodeBlock codeBlock, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)

@@ -20,4 +20,5 @@ public enum BlockStyleKey
     Paragraph,
     Table,
     CodeBlock,
+    Blockquote,
 }

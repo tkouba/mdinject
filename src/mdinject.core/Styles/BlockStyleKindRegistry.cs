@@ -8,7 +8,10 @@ namespace Mdinject.Core.Styles;
 /// - <see cref="AutoDefaultKeys"/>: constructs with a genuine Word-native default — resolved via
 ///   the template's own <see cref="StyleInfo.IsDefault"/> flag for that kind, never an error.
 /// - <see cref="DefaultNames"/>: constructs with no native default but a canonical Word name worth
-///   guessing (headings only) — resolved via that name if the template happens to define it.
+///   guessing — resolved via that name if the template happens to define it. For headings, a failed
+///   guess is an error (via <see cref="StyleResolver.ResolveBlockStyle"/>); for
+///   <see cref="BlockStyleKey.Blockquote"/> it isn't, since <see cref="StyleResolver.ResolveBlockquoteStyle"/>
+///   falls back further to direct paragraph indentation with a warning instead of erroring.
 /// Anything in neither set (currently only <see cref="BlockStyleKey.CodeBlock"/>) has no default at
 /// all: it must be explicitly configured, and unconfigured use throws only once the construct is
 /// actually encountered.
@@ -28,6 +31,7 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Heading9] = StyleKind.Paragraph,
         [BlockStyleKey.Paragraph] = StyleKind.Paragraph,
         [BlockStyleKey.CodeBlock] = StyleKind.Paragraph,
+        [BlockStyleKey.Blockquote] = StyleKind.Paragraph,
         [BlockStyleKey.Table] = StyleKind.Table,
     };
 
@@ -50,5 +54,6 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Heading7] = "heading 7",
         [BlockStyleKey.Heading8] = "heading 8",
         [BlockStyleKey.Heading9] = "heading 9",
+        [BlockStyleKey.Blockquote] = "Quote",
     };
 }
