@@ -63,6 +63,37 @@ public sealed class DocxTemplateDocumentTests : IDisposable
     }
 
     [Fact]
+    public async Task GetPlaceholdersAsync_ReturnsDistinctPlaceholdersInDocumentOrder()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.docx");
+        try
+        {
+            CreateTemplateWithPlaceholders(path);
+            using var templateDocument = new DocxTemplateDocument(path);
+
+            var placeholders = await templateDocument.GetPlaceholdersAsync();
+
+            Assert.Equal(["LICENSE", "CONTENT"], placeholders);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task GetPlaceholdersAsync_WithCancelledToken_ThrowsOperationCanceledException()
+    {
+        using var templateDocument = new DocxTemplateDocument(templatePath);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => templateDocument.GetPlaceholdersAsync(cts.Token));
+    }
+
+    [Fact]
     public void Dispose_ReleasesUnderlyingFile()
     {
         var templateDocument = new DocxTemplateDocument(templatePath);
@@ -78,6 +109,21 @@ public sealed class DocxTemplateDocumentTests : IDisposable
     {
         if (File.Exists(templatePath))
             File.Delete(templatePath);
+    }
+
+    private static void CreateTemplateWithPlaceholders(string path)
+    {
+        using var document = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
+
+        var mainPart = document.AddMainDocumentPart();
+        mainPart.Document = new Document(new Body(
+            new Paragraph(new Run(new Text("Intro"))),
+            new Paragraph(new Run(new Text("{{LICENSE}}"))),
+            new Paragraph(new Run(new Text("Not {{CONTENT}} inline"))),
+            new Paragraph(new Run(new Text("{{CONTENT}}"))),
+            new Paragraph(new Run(new Text("{{LICENSE}}")))));
+
+        mainPart.Document.Save();
     }
 
     private static void CreateTestTemplate(string path)

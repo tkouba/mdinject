@@ -53,6 +53,7 @@ public sealed class Program
             {
                 branch.SetDescription("List information about a template document.");
                 branch.AddCommand<ListStylesCommand>("styles");
+                branch.AddCommand<ListPlaceholdersCommand>("placeholders");
             });
 
             config.AddBranch("create", branch =>

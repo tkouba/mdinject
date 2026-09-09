@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -11,6 +12,8 @@ namespace Mdinject.Docx;
 /// </summary>
 public sealed class DocxTemplateDocument : ITemplateDocument
 {
+    private static readonly Regex PlaceholderPattern = new Regex(@"^\{\{([^{}]+)\}\}$", RegexOptions.Compiled);
+
     private readonly WordprocessingDocument document;
 
     public DocxTemplateDocument(string templatePath)
@@ -44,6 +47,31 @@ public sealed class DocxTemplateDocument : ITemplateDocument
         }
 
         return Task.FromResult<IReadOnlyList<StyleInfo>>(result);
+    }
+
+    public Task<IReadOnlyList<string>> GetPlaceholdersAsync(CancellationToken cancellationToken = default)
+    {
+        var body = document.MainDocumentPart?.Document?.Body;
+        if (body == null)
+            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
+        var result = new List<string>();
+
+        foreach (var paragraph in body.Elements<Paragraph>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var match = PlaceholderPattern.Match(GetText(paragraph).Trim());
+            if (match.Success && !result.Contains(match.Groups[1].Value))
+                result.Add(match.Groups[1].Value);
+        }
+
+        return Task.FromResult<IReadOnlyList<string>>(result);
+    }
+
+    private static string GetText(Paragraph paragraph)
+    {
+        return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
     private static StyleKind MapKind(EnumValue<StyleValues>? type)
