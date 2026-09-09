@@ -135,9 +135,14 @@ A construct left out of the configuration doesn't always behave the same way:
   quoted paragraph is indented directly instead (the same category of exception as bold/italic
   direct formatting) and a warning is printed. Unlike links, there's no way to configure an explicit
   blank opt-out for a block style — an absent `blockquote` key and an empty one behave the same.
-- **Bullet/numbered lists** — not part of style mapping at all. Bullets come from a paragraph's
-  direct `w:numPr`/`w:numId` reference into `numbering.xml`, the same category as bold/italic direct
-  formatting rather than a named style, and aren't modeled yet.
+- **Bullet/numbered lists** — not part of style mapping at all, and never error for being
+  unconfigured. mdinject creates its own bullet or decimal numbering definition directly in
+  `numbering.xml` for every markdown list and references it from each item via a direct
+  `w:numPr`/`w:numId`, the same category as bold/italic direct formatting rather than a named
+  style — this works whether or not the template defines any numbering of its own. Each separate
+  markdown list gets its own numbering definition, so every list restarts at "1." rather than
+  continuing a previous one. List items themselves use the resolved `paragraph` style. Nested lists
+  and list items spanning more than one paragraph aren't supported yet.
 
 Run `mdinject create configuration` (see [Auxiliary commands](#auxiliary-commands)) to generate a
 starter file with everything mdinject can resolve for a specific template already filled in.

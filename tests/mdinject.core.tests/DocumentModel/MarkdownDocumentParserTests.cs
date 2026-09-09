@@ -63,11 +63,29 @@ public sealed class MarkdownDocumentParserTests
             - Item B
             """);
 
-        var list = Assert.IsType<DocumentBlock.BulletList>(Assert.Single(document.Blocks));
+        var list = Assert.IsType<DocumentBlock.List>(Assert.Single(document.Blocks));
 
+        Assert.False(list.Ordered);
         Assert.Equal(2, list.Items.Count);
         Assert.Equal("Item A", Assert.Single(list.Items[0]).Text);
         Assert.Equal("Item B", Assert.Single(list.Items[1]).Text);
+    }
+
+    [Fact]
+    public void Parse_OrderedList_CapturesEachItemAsInlineSpans()
+    {
+        var document = parser.Parse(
+            """
+            1. First
+            2. Second
+            """);
+
+        var list = Assert.IsType<DocumentBlock.List>(Assert.Single(document.Blocks));
+
+        Assert.True(list.Ordered);
+        Assert.Equal(2, list.Items.Count);
+        Assert.Equal("First", Assert.Single(list.Items[0]).Text);
+        Assert.Equal("Second", Assert.Single(list.Items[1]).Text);
     }
 
     [Fact]
@@ -140,12 +158,6 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
-    public void Parse_OrderedList_ThrowsMarkdownConversionException()
-    {
-        Assert.Throws<MarkdownConversionException>(() => parser.Parse("1. First\n2. Second"));
-    }
-
-    [Fact]
     public void Parse_FencedCodeBlock_CapturesRawText()
     {
         var document = parser.Parse(
@@ -174,6 +186,6 @@ public sealed class MarkdownDocumentParserTests
         Assert.Equal(3, document.Blocks.Count);
         Assert.IsType<DocumentBlock.Heading>(document.Blocks[0]);
         Assert.IsType<DocumentBlock.Paragraph>(document.Blocks[1]);
-        Assert.IsType<DocumentBlock.BulletList>(document.Blocks[2]);
+        Assert.IsType<DocumentBlock.List>(document.Blocks[2]);
     }
 }

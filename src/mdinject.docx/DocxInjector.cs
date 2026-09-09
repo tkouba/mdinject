@@ -11,9 +11,9 @@ namespace Mdinject.Docx;
 
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
-/// placeholder paragraph. Supports headings, paragraphs, blockquotes, code blocks, and inline
-/// bold/italic/code/links so far - bullet lists (and anything else in the document model) throw
-/// <see cref="NotSupportedException"/> until a later pass adds them.
+/// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes, code
+/// blocks, and inline bold/italic/code/links so far - anything else in the document model throws
+/// <see cref="NotSupportedException"/> until a later pass adds it.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
 {
@@ -109,6 +109,11 @@ public sealed class DocxInjector : IDocumentInjector
                 yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles, mainPart, warnings);
                 yield break;
 
+            case DocumentBlock.List list:
+                foreach (var paragraph in BuildListParagraphs(list, configuration, templateStyles, mainPart, warnings))
+                    yield return paragraph;
+                yield break;
+
             case DocumentBlock.Blockquote blockquote:
                 foreach (var paragraph in BuildBlockquoteParagraphs(blockquote, configuration, templateStyles, mainPart, warnings))
                     yield return paragraph;
@@ -150,6 +155,29 @@ public sealed class DocxInjector : IDocumentInjector
             paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
 
         return paragraph;
+    }
+
+    private IEnumerable<Paragraph> BuildListParagraphs(DocumentBlock.List list, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
+    {
+        // Bullets/numbers come from a paragraph's direct w:numPr/w:numId reference into
+        // numbering.xml, not a named style - the same category as bold/italic direct formatting,
+        // so list items otherwise use the plain resolved Paragraph style, per AGENTS.md.
+        var styleId = styleResolver.ResolveBlockStyle(BlockStyleKey.Paragraph, configuration, templateStyles);
+        var numId = ListNumbering.EnsureListDefinition(mainPart, list.Ordered);
+
+        foreach (var content in list.Items)
+        {
+            var paragraphProperties = new ParagraphProperties(
+                new ParagraphStyleId { Val = styleId },
+                new NumberingProperties(new NumberingLevelReference { Val = 0 }, new NumberingId { Val = numId }));
+
+            var paragraph = new Paragraph(paragraphProperties);
+
+            foreach (var span in content)
+                paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
+
+            yield return paragraph;
+        }
     }
 
     private IEnumerable<Paragraph> BuildBlockquoteParagraphs(DocumentBlock.Blockquote blockquote, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)

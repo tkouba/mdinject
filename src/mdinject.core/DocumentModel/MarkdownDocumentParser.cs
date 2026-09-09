@@ -6,9 +6,9 @@ namespace Mdinject.Core.DocumentModel;
 
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
-/// only the "core skeleton" constructs for now: headings, paragraphs, unordered lists, blockquotes,
-/// fenced/indented code blocks, and inline bold/italic/code/links. Anything else (tables, images,
-/// ordered lists, alerts) throws <see cref="MarkdownConversionException"/> rather than silently
+/// only the "core skeleton" constructs for now: headings, paragraphs, bullet and numbered lists,
+/// blockquotes, fenced/indented code blocks, and inline bold/italic/code/links. Anything else
+/// (tables, images, alerts) throws <see cref="MarkdownConversionException"/> rather than silently
 /// dropping content. Links must resolve to an absolute URL (http(s), mailto, ...) - relative links
 /// have no meaningful target once the content is injected into a Word document, so they're rejected
 /// rather than silently kept as broken links.
@@ -56,11 +56,8 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
         return new DocumentBlock.Blockquote(paragraphs);
     }
 
-    private static DocumentBlock.BulletList ConvertList(ListBlock list)
+    private static DocumentBlock.List ConvertList(ListBlock list)
     {
-        if (list.IsOrdered)
-            throw new MarkdownConversionException("Ordered lists are not supported yet.");
-
         var items = new List<IReadOnlyList<InlineSpan>>();
 
         foreach (var itemBlock in list)
@@ -75,7 +72,7 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             items.Add(ConvertInlines(paragraph.Inline));
         }
 
-        return new DocumentBlock.BulletList(items);
+        return new DocumentBlock.List(list.IsOrdered, items);
     }
 
     private static string ExtractCodeText(CodeBlock code)

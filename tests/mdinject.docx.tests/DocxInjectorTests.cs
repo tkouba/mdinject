@@ -254,6 +254,94 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_BulletList_AppliesBulletNumberingToEachItem()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.List(false,
+            [
+                [new InlineSpan("Item A", false, false, false)],
+                [new InlineSpan("Item B", false, false, false)],
+            ]),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var mainPart = result.MainDocumentPart!;
+        var paragraphs = mainPart.Document!.Body!.Elements<Paragraph>()
+            .Where(p => GetText(p) is "Item A" or "Item B")
+            .ToList();
+
+        Assert.Equal(2, paragraphs.Count);
+        Assert.Equal("Normal", paragraphs[0].ParagraphProperties?.ParagraphStyleId?.Val);
+
+        var numIds = paragraphs.Select(p => p.ParagraphProperties!.NumberingProperties!.NumberingId!.Val!.Value).ToList();
+        Assert.Equal(numIds[0], numIds[1]);
+        Assert.All(paragraphs, p => Assert.Equal(0, p.ParagraphProperties!.NumberingProperties!.NumberingLevelReference!.Val!.Value));
+
+        var numbering = mainPart.NumberingDefinitionsPart!.Numbering!;
+        var numberingInstance = numbering.Elements<NumberingInstance>().Single(n => n.NumberID!.Value == numIds[0]);
+        var abstractNum = numbering.Elements<AbstractNum>().Single(a => a.AbstractNumberId!.Value == numberingInstance.AbstractNumId!.Val!.Value);
+        var level = abstractNum.Elements<Level>().Single();
+
+        Assert.Equal(NumberFormatValues.Bullet, level.NumberingFormat!.Val!.Value);
+    }
+
+    [Fact]
+    public async Task InjectAsync_OrderedList_AppliesDecimalNumberingToEachItem()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.List(true,
+            [
+                [new InlineSpan("First", false, false, false)],
+                [new InlineSpan("Second", false, false, false)],
+            ]),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var mainPart = result.MainDocumentPart!;
+        var paragraph = mainPart.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "First");
+
+        var numId = paragraph.ParagraphProperties!.NumberingProperties!.NumberingId!.Val!.Value;
+        var numbering = mainPart.NumberingDefinitionsPart!.Numbering!;
+        var numberingInstance = numbering.Elements<NumberingInstance>().Single(n => n.NumberID!.Value == numId);
+        var abstractNum = numbering.Elements<AbstractNum>().Single(a => a.AbstractNumberId!.Value == numberingInstance.AbstractNumId!.Val!.Value);
+        var level = abstractNum.Elements<Level>().Single();
+
+        Assert.Equal(NumberFormatValues.Decimal, level.NumberingFormat!.Val!.Value);
+        Assert.Equal("%1.", level.LevelText!.Val!.Value);
+    }
+
+    [Fact]
+    public async Task InjectAsync_TwoSeparateLists_GetIndependentNumIds()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.List(false, [[new InlineSpan("A", false, false, false)]]),
+            new DocumentBlock.Paragraph([new InlineSpan("Between the two lists.", false, false, false)]),
+            new DocumentBlock.List(false, [[new InlineSpan("B", false, false, false)]]),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var mainPart = result.MainDocumentPart!;
+        var firstItem = mainPart.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "A");
+        var secondItem = mainPart.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "B");
+
+        var firstNumId = firstItem.ParagraphProperties!.NumberingProperties!.NumberingId!.Val!.Value;
+        var secondNumId = secondItem.ParagraphProperties!.NumberingProperties!.NumberingId!.Val!.Value;
+
+        // Separate markdown lists never share a numId - if they did, the second list would
+        // continue counting from the first instead of each restarting at "1.".
+        Assert.NotEqual(firstNumId, secondNumId);
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);

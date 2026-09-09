@@ -96,7 +96,7 @@ public sealed class InjectCommandIntegrationTests : IDisposable
     [Fact]
     public async Task Main_UnsupportedMarkdownConstruct_ReturnsOne()
     {
-        await File.WriteAllTextAsync(inputPath, "1. First\n2. Second\n");
+        await File.WriteAllTextAsync(inputPath, "![alt](https://example.com/image.png)\n");
 
         var exitCode = await Program.Main(
             ["--template", templatePath, "--placeholder", "CONTENT", "--input", inputPath, "--output", outputPath]);

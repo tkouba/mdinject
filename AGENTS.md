@@ -199,7 +199,7 @@ Example:
 Document
  ├─ Heading(level=1)
  ├─ Paragraph
- ├─ BulletList
+ ├─ List(ordered)
  ├─ Blockquote
  ├─ Table
  └─ CodeBlock
@@ -258,10 +258,22 @@ Normal paragraph.
 
 ### Lists
 
+Bullet and numbered, flat (no nesting), single-paragraph items only.
+
 ```md
 - Item A
 - Item B
 ```
+
+```md
+1. Step one
+2. Step two
+```
+
+Bullets/numbers are direct `w:numPr`/`w:numId` formatting into a numbering definition mdinject
+creates itself in `numbering.xml` - not a named style - so this works regardless of what the
+template defines. Each separate list gets its own numbering definition so it always restarts
+at "1."; list items use the resolved `paragraph` style.
 
 ### Tables
 
