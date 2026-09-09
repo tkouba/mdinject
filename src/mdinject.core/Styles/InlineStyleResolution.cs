@@ -15,5 +15,10 @@ public abstract record InlineStyleResolution
 
     public sealed record DirectFormatting : InlineStyleResolution;
 
-    public sealed record NoFormatting : InlineStyleResolution;
+    /// <summary>
+    /// <paramref name="Warning"/> is set when this is an automatic fallback the user didn't ask for
+    /// (e.g. an unconfigured link with no canonical style in the template) - callers should surface
+    /// it to the user. It's null for a deliberate opt-out (an explicit blank configuration value).
+    /// </summary>
+    public sealed record NoFormatting(string? Warning = null) : InlineStyleResolution;
 }

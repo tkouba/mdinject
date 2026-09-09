@@ -80,7 +80,10 @@ public sealed class InjectCommand(
             var markdown = await File.ReadAllTextAsync(settings.InputPath, cancellationToken);
             var document = _parser.Parse(markdown);
 
-            await _injector.InjectAsync(settings.TemplatePath, settings.OutputPath, settings.Placeholder, document, configuration, cancellationToken);
+            var warnings = await _injector.InjectAsync(settings.TemplatePath, settings.OutputPath, settings.Placeholder, document, configuration, cancellationToken);
+
+            foreach (var warning in warnings)
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
 
             AnsiConsole.MarkupLine($"[green]Document written to[/] {Markup.Escape(settings.OutputPath)}");
             return 0;

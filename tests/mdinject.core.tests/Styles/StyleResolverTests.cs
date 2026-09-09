@@ -152,12 +152,14 @@ public sealed class StyleResolverTests
     }
 
     [Fact]
-    public void ResolveInlineStyle_UnconfiguredLink_NoHyperlinkStyleInTemplate_ReturnsNoFormatting()
+    public void ResolveInlineStyle_UnconfiguredLink_NoHyperlinkStyleInTemplate_ReturnsNoFormattingWithWarning()
     {
-        // Unlike Code, a link is functional without any named style, so an absent key never errors.
+        // Unlike Code, a link is functional without any named style, so an absent key never errors -
+        // but since this is an automatic fallback the user didn't ask for, it carries a warning.
         var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, StyleMappingConfiguration.Empty, TemplateStyles);
 
-        Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+        var noFormatting = Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+        Assert.NotNull(noFormatting.Warning);
     }
 
     [Fact]
@@ -176,15 +178,18 @@ public sealed class StyleResolverTests
     }
 
     [Fact]
-    public void ResolveInlineStyle_ExplicitlyBlankLink_ReturnsNoFormatting()
+    public void ResolveInlineStyle_ExplicitlyBlankLink_ReturnsNoFormattingWithoutWarning()
     {
+        // "link:" present with no value is a deliberate opt-out, so it shouldn't warn like the
+        // fully-absent-key automatic fallback does.
         var configuration = new StyleMappingConfiguration(
             new Dictionary<BlockStyleKey, string>(),
             new Dictionary<InlineStyleKey, string?> { [InlineStyleKey.Link] = null });
 
         var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, configuration, TemplateStyles);
 
-        Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+        var noFormatting = Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+        Assert.Null(noFormatting.Warning);
     }
 
     [Fact]

@@ -69,9 +69,12 @@ public sealed class StyleResolver : IStyleResolver
         if (key == InlineStyleKey.Link)
         {
             var guessedStyle = StyleLookup.FindByReference("Hyperlink", StyleKind.Character, templateStyles);
-            return guessedStyle != null
-                ? new InlineStyleResolution.NamedStyle(guessedStyle.Id)
-                : new InlineStyleResolution.NoFormatting();
+            if (guessedStyle != null)
+                return new InlineStyleResolution.NamedStyle(guessedStyle.Id);
+
+            return new InlineStyleResolution.NoFormatting(
+                "Template has no 'Hyperlink' style; links will be inserted without a named style. " +
+                "Configure 'link' explicitly to silence this warning.");
         }
 
         throw new StyleResolutionException($"Inline '{key}' is not configured and has no usable default.");

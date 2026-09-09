@@ -26,7 +26,7 @@ public sealed class DocxInjector : IDocumentInjector
         this.styleResolver = styleResolver;
     }
 
-    public async Task InjectAsync(
+    public async Task<IReadOnlyList<string>> InjectAsync(
         string templatePath,
         string outputPath,
         string placeholder,
@@ -39,6 +39,8 @@ public sealed class DocxInjector : IDocumentInjector
         {
             templateStyles = await templateDocument.GetStylesAsync(cancellationToken);
         }
+
+        var warnings = new List<string>();
 
         // Work on a temporary copy so a failed injection (missing placeholder, unsupported block,
         // style resolution error, ...) never leaves a bogus or partially-mutated file at outputPath.
@@ -61,7 +63,7 @@ public sealed class DocxInjector : IDocumentInjector
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    foreach (var element in ConvertBlock(block, configuration, templateStyles, mainPart))
+                    foreach (var element in ConvertBlock(block, configuration, templateStyles, mainPart, warnings))
                     {
                         anchor.InsertAfterSelf(element);
                         anchor = element;
@@ -79,6 +81,8 @@ public sealed class DocxInjector : IDocumentInjector
         {
             File.Delete(tempPath);
         }
+
+        return warnings.Distinct().ToList();
     }
 
     private static Paragraph? FindPlaceholderParagraph(Body body, string placeholder)
@@ -93,16 +97,16 @@ public sealed class DocxInjector : IDocumentInjector
         return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
-    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
+    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
     {
         switch (block)
         {
             case DocumentBlock.Heading heading:
-                yield return BuildParagraph(HeadingKey(heading.Level), heading.Content, configuration, templateStyles, mainPart);
+                yield return BuildParagraph(HeadingKey(heading.Level), heading.Content, configuration, templateStyles, mainPart, warnings);
                 yield break;
 
             case DocumentBlock.Paragraph paragraph:
-                yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles, mainPart);
+                yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles, mainPart, warnings);
                 yield break;
 
             case DocumentBlock.CodeBlock codeBlock:
@@ -131,14 +135,14 @@ public sealed class DocxInjector : IDocumentInjector
         };
     }
 
-    private Paragraph BuildParagraph(BlockStyleKey key, IReadOnlyList<InlineSpan> content, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
+    private Paragraph BuildParagraph(BlockStyleKey key, IReadOnlyList<InlineSpan> content, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
     {
         var styleId = styleResolver.ResolveBlockStyle(key, configuration, templateStyles);
 
         var paragraph = new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = styleId }));
 
         foreach (var span in content)
-            paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart));
+            paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
 
         return paragraph;
     }
@@ -161,11 +165,11 @@ public sealed class DocxInjector : IDocumentInjector
         return paragraph;
     }
 
-    private OpenXmlElement BuildRunOrHyperlink(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
+    private OpenXmlElement BuildRunOrHyperlink(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
     {
         var run = new Run();
 
-        var runProperties = BuildRunProperties(span, configuration, templateStyles);
+        var runProperties = BuildRunProperties(span, configuration, templateStyles, warnings);
         if (runProperties != null)
             run.AppendChild(runProperties);
 
@@ -178,7 +182,7 @@ public sealed class DocxInjector : IDocumentInjector
         return new Hyperlink(run) { Id = relationship.Id, History = OnOffValue.FromBoolean(true) };
     }
 
-    private RunProperties? BuildRunProperties(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    private RunProperties? BuildRunProperties(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, List<string> warnings)
     {
         string? rStyleId = null;
         var bold = false;
@@ -189,16 +193,16 @@ public sealed class DocxInjector : IDocumentInjector
         // (Code, then Link, then Bold, then Italic) wins; the others still apply as direct
         // formatting if requested.
         if (span.Code)
-            ApplyInline(InlineStyleKey.Code, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
+            ApplyInline(InlineStyleKey.Code, configuration, templateStyles, ref rStyleId, ref bold, ref italic, warnings);
 
         if (span.LinkUrl != null)
-            ApplyInline(InlineStyleKey.Link, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
+            ApplyInline(InlineStyleKey.Link, configuration, templateStyles, ref rStyleId, ref bold, ref italic, warnings);
 
         if (span.Bold)
-            ApplyInline(InlineStyleKey.Bold, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
+            ApplyInline(InlineStyleKey.Bold, configuration, templateStyles, ref rStyleId, ref bold, ref italic, warnings);
 
         if (span.Italic)
-            ApplyInline(InlineStyleKey.Italic, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
+            ApplyInline(InlineStyleKey.Italic, configuration, templateStyles, ref rStyleId, ref bold, ref italic, warnings);
 
         if (rStyleId == null && !bold && !italic)
             return null;
@@ -223,7 +227,8 @@ public sealed class DocxInjector : IDocumentInjector
         IReadOnlyList<StyleInfo> templateStyles,
         ref string? rStyleId,
         ref bool bold,
-        ref bool italic)
+        ref bool italic,
+        List<string> warnings)
     {
         var resolution = styleResolver.ResolveInlineStyle(key, configuration, templateStyles);
 
@@ -239,6 +244,11 @@ public sealed class DocxInjector : IDocumentInjector
                 bold = true;
             else if (key == InlineStyleKey.Italic)
                 italic = true;
+
+            return;
         }
+
+        if (resolution is InlineStyleResolution.NoFormatting { Warning: not null } noFormatting)
+            warnings.Add(noFormatting.Warning);
     }
 }
