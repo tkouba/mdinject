@@ -34,7 +34,8 @@ public sealed class InjectCommand(
 
         [Description("Placeholder name to replace, e.g. CONTENT for {{CONTENT}}.")]
         [CommandOption("--placeholder <NAME>")]
-        public string Placeholder { get; init; } = String.Empty;
+        [DefaultValue("CONTENT")]
+        public string Placeholder { get; init; } = "CONTENT";
 
         [Description("Path to the input Markdown file.")]
         [CommandOption("--input <PATH>")]
