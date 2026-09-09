@@ -258,6 +258,132 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_UnconfiguredAlert_FallsBackToPlainBlockquoteIndentAndWarning()
+    {
+        // No style configured for "warning" (or "Quote" in the template): an alert with no style
+        // of its own must render like an unconfigured plain blockquote, except the "[!WARNING]"
+        // marker itself stays visible in the text, since every other distinction is lost.
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote([[new InlineSpan("Danger", false, false, false)]], AlertKind.Warning),
+        ]);
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "[!WARNING]Danger");
+
+        Assert.Null(paragraph.ParagraphProperties?.ParagraphStyleId);
+        Assert.Equal("720", paragraph.ParagraphProperties?.Indentation?.Left);
+        Assert.Single(warnings);
+
+        var runs = paragraph.Elements<Run>().ToList();
+        Assert.Equal("[!WARNING]", runs[0].InnerText);
+        Assert.NotNull(runs[0].RunProperties?.Bold);
+        Assert.NotNull(runs[1].Elements<Break>().SingleOrDefault());
+    }
+
+    [Fact]
+    public async Task InjectAsync_FallbackAlertWithMultipleParagraphs_MarkerOnlyOnFirstParagraph()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote(
+            [
+                [new InlineSpan("First.", false, false, false)],
+                [new InlineSpan("Second.", false, false, false)],
+            ],
+            AlertKind.Note),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraphs = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>()
+            .Where(p => GetText(p).Contains("First.") || GetText(p) == "Second.")
+            .ToList();
+
+        Assert.Equal("[!NOTE]First.", GetText(paragraphs[0]));
+        Assert.Equal("Second.", GetText(paragraphs[1]));
+    }
+
+    [Fact]
+    public async Task InjectAsync_AlertWithConfiguredStyleForItsKind_AppliesNamedStyleWithoutIndentOrWarning()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote([[new InlineSpan("Danger", false, false, false)]], AlertKind.Warning),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Warning] = "Code" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "Danger");
+
+        Assert.Equal("CodeParagraph", paragraph.ParagraphProperties?.ParagraphStyleId?.Val);
+        Assert.Null(paragraph.ParagraphProperties?.Indentation);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public async Task InjectAsync_AlertConfiguredForADifferentKind_StillFallsBack()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Blockquote([[new InlineSpan("Danger", false, false, false)]], AlertKind.Warning),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Note] = "Code" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "[!WARNING]Danger");
+
+        Assert.Null(paragraph.ParagraphProperties?.ParagraphStyleId);
+        Assert.Equal("720", paragraph.ParagraphProperties?.Indentation?.Left);
+        Assert.Single(warnings);
+    }
+
+    [Fact]
+    public async Task InjectAsync_UnconfiguredAlertWithQuoteStyleInTemplate_UsesQuoteStyleButStillWarns()
+    {
+        // Unlike the shared test template (which has no "Quote" style, exercising the direct-indent
+        // fallback above), this one does - proving an alert still warns even when the blockquote
+        // fallback silently resolves to a real named style, since the alert's own visual
+        // distinction is lost either way.
+        var templateWithQuoteStylePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.docx");
+        try
+        {
+            CreateTestTemplateWithQuoteStyle(templateWithQuoteStylePath);
+
+            var document = new MarkdownDocument(
+            [
+                new DocumentBlock.Blockquote([[new InlineSpan("Danger", false, false, false)]], AlertKind.Warning),
+            ]);
+
+            var warnings = await injector.InjectAsync(templateWithQuoteStylePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+            using var result = WordprocessingDocument.Open(outputPath, false);
+            var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => GetText(p) == "[!WARNING]Danger");
+
+            Assert.Equal("QuoteStyle", paragraph.ParagraphProperties?.ParagraphStyleId?.Val);
+            Assert.Null(paragraph.ParagraphProperties?.Indentation);
+            Assert.Single(warnings);
+        }
+        finally
+        {
+            File.Delete(templateWithQuoteStylePath);
+        }
+    }
+
+    [Fact]
     public async Task InjectAsync_BulletList_AppliesBulletNumberingToEachItem()
     {
         var document = new MarkdownDocument(
@@ -729,6 +855,31 @@ public sealed class DocxInjectorTests : IDisposable
         var defaultTableStyle = new Style { Type = StyleValues.Table, StyleId = "NormalTable", Default = true };
         defaultTableStyle.Append(new StyleName { Val = "Normal Table" });
         styles.Append(defaultTableStyle);
+
+        stylesPart.Styles = styles;
+        stylesPart.Styles.Save();
+        mainPart.Document.Save();
+    }
+
+    private static void CreateTestTemplateWithQuoteStyle(string path)
+    {
+        using var document = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
+
+        var mainPart = document.AddMainDocumentPart();
+        mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new Body(
+            new Paragraph(new Run(new Text("{{CONTENT}}")))));
+
+        var stylesPart = mainPart.AddNewPart<StyleDefinitionsPart>();
+        var styles = new Styles();
+
+        var normal = new Style { Type = StyleValues.Paragraph, StyleId = "Normal", Default = true };
+        normal.Append(new StyleName { Val = "Normal" });
+        styles.Append(normal);
+
+        var quote = new Style { Type = StyleValues.Paragraph, StyleId = "QuoteStyle" };
+        quote.Append(new StyleName { Val = "Quote" });
+        quote.Append(new BasedOn { Val = "Normal" });
+        styles.Append(quote);
 
         stylesPart.Styles = styles;
         stylesPart.Styles.Save();

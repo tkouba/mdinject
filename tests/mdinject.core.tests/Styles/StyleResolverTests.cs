@@ -1,4 +1,5 @@
 using Mdinject.Core.Configuration;
+using Mdinject.Core.DocumentModel;
 using Mdinject.Core.Styles;
 
 namespace Mdinject.Core.Tests.Styles;
@@ -219,11 +220,13 @@ public sealed class StyleResolverTests
     [Fact]
     public void ResolveBlockquoteStyle_Unconfigured_GuessesCanonicalQuoteStyle()
     {
-        // TemplateStyles already defines a paragraph style named "Quote" ("MyQuote").
+        // TemplateStyles already defines a paragraph style named "Quote" ("MyQuote"). Unlike an
+        // alert falling back to this same resolution, a plain blockquote never warns for it.
         var resolution = resolver.ResolveBlockquoteStyle(StyleMappingConfiguration.Empty, TemplateStyles);
 
         var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
         Assert.Equal("MyQuote", namedStyle.StyleId);
+        Assert.Null(namedStyle.Warning);
     }
 
     [Fact]
@@ -262,6 +265,72 @@ public sealed class StyleResolverTests
 
         Assert.Throws<StyleResolutionException>(
             () => resolver.ResolveBlockquoteStyle(configuration, TemplateStyles));
+    }
+
+    [Fact]
+    public void ResolveAlertStyle_Unconfigured_FallsBackToBlockquoteResolutionButStillWarns()
+    {
+        // TemplateStyles already defines a paragraph style named "Quote" ("MyQuote") - an alert
+        // with no style of its own must resolve to that same style a plain blockquote would use,
+        // but (unlike a plain blockquote) it must still warn: the alert's own visual distinction
+        // is lost even though a real style was found.
+        var resolution = resolver.ResolveAlertStyle(AlertKind.Warning, StyleMappingConfiguration.Empty, TemplateStyles);
+
+        var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("MyQuote", namedStyle.StyleId);
+        Assert.NotNull(namedStyle.Warning);
+    }
+
+    [Fact]
+    public void ResolveAlertStyle_Unconfigured_NoQuoteStyleInTemplate_ReturnsDirectIndentWithWarning()
+    {
+        IReadOnlyList<StyleInfo> stylesWithoutQuote =
+        [
+            new StyleInfo("Normal", "Normal", StyleKind.Paragraph, true, null, [], false),
+        ];
+
+        var resolution = resolver.ResolveAlertStyle(AlertKind.Warning, StyleMappingConfiguration.Empty, stylesWithoutQuote);
+
+        var directIndent = Assert.IsType<BlockquoteStyleResolution.DirectIndent>(resolution);
+        Assert.NotNull(directIndent.Warning);
+    }
+
+    [Fact]
+    public void ResolveAlertStyle_WithConfiguredStyleForThatKind_ResolvesNamedStyleInsteadOfFallback()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Warning] = "H1" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var resolution = resolver.ResolveAlertStyle(AlertKind.Warning, configuration, TemplateStyles);
+
+        var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("Heading1", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveAlertStyle_ConfiguredForADifferentKind_DoesNotApply()
+    {
+        // Configuring "note" must not affect "warning" - each alert kind is independent.
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Note] = "H1" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var resolution = resolver.ResolveAlertStyle(AlertKind.Warning, configuration, TemplateStyles);
+
+        var namedStyle = Assert.IsType<BlockquoteStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("MyQuote", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveAlertStyle_WithUnresolvableConfiguredReference_ThrowsStyleResolutionException()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Warning] = "No Such Style" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        Assert.Throws<StyleResolutionException>(
+            () => resolver.ResolveAlertStyle(AlertKind.Warning, configuration, TemplateStyles));
     }
 
     [Fact]

@@ -17,6 +17,11 @@ namespace Mdinject.Core.Styles;
 /// <see cref="StyleResolver.ResolveBlockStyle"/>); <see cref="BlockStyleKey.HorizontalRule"/> never
 /// errors either way, since <see cref="StyleResolver.ResolveHorizontalRuleStyle"/> falls back to a
 /// direct paragraph border - the genuine intentional default, not a degraded one, so it doesn't warn.
+/// The five alert kinds (<see cref="BlockStyleKey.Note"/>, <see cref="BlockStyleKey.Tip"/>,
+/// <see cref="BlockStyleKey.Important"/>, <see cref="BlockStyleKey.Warning"/>,
+/// <see cref="BlockStyleKey.Caution"/>) are here too, but never resolved via the generic
+/// <see cref="StyleResolver.ResolveBlockStyle"/> path at all - <see cref="StyleResolver.ResolveAlertStyle"/>
+/// falls back to whatever a plain blockquote resolves to when its specific kind isn't configured.
 /// </summary>
 internal static class BlockStyleKindRegistry
 {
@@ -35,6 +40,11 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.CodeBlock] = StyleKind.Paragraph,
         [BlockStyleKey.Blockquote] = StyleKind.Paragraph,
         [BlockStyleKey.HorizontalRule] = StyleKind.Paragraph,
+        [BlockStyleKey.Note] = StyleKind.Paragraph,
+        [BlockStyleKey.Tip] = StyleKind.Paragraph,
+        [BlockStyleKey.Important] = StyleKind.Paragraph,
+        [BlockStyleKey.Warning] = StyleKind.Paragraph,
+        [BlockStyleKey.Caution] = StyleKind.Paragraph,
         [BlockStyleKey.Table] = StyleKind.Table,
     };
 

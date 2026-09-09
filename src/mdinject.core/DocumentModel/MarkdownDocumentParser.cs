@@ -1,5 +1,6 @@
 using System.Text;
 using Markdig;
+using Markdig.Extensions.Alerts;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -9,18 +10,18 @@ namespace Mdinject.Core.DocumentModel;
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
 /// only the "core skeleton" constructs for now: headings, paragraphs, bullet and numbered lists,
-/// blockquotes, GitHub-style pipe tables, fenced/indented code blocks, horizontal rules, standalone
-/// images, and inline bold/italic/code/links. Anything else (alerts) throws
-/// <see cref="MarkdownConversionException"/> rather than silently dropping content. Links must
-/// resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful target
-/// once the content is injected into a Word document, so they're rejected rather than silently
-/// kept as broken links. Images are the opposite: only a local file path (relative or absolute) is
-/// accepted, since remote fetching isn't supported; an image mixed with other inline content in the
-/// same paragraph is also rejected - it must be the paragraph's only content.
+/// blockquotes (including GitHub-style alerts), GitHub-style pipe tables, fenced/indented code
+/// blocks, horizontal rules, standalone images, and inline bold/italic/code/links. Anything else
+/// throws <see cref="MarkdownConversionException"/> rather than silently dropping content. Links
+/// must resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful
+/// target once the content is injected into a Word document, so they're rejected rather than
+/// silently kept as broken links. Images are the opposite: only a local file path (relative or
+/// absolute) is accepted, since remote fetching isn't supported; an image mixed with other inline
+/// content in the same paragraph is also rejected - it must be the paragraph's only content.
 /// </summary>
 public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
 {
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UsePipeTables().Build();
+    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UsePipeTables().UseAlertBlocks().Build();
 
     public Document Parse(string markdown)
     {
@@ -40,6 +41,8 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             HeadingBlock heading => new DocumentBlock.Heading(heading.Level, ConvertInlines(heading.Inline)),
             ParagraphBlock paragraph => ConvertParagraphOrImage(paragraph),
             ListBlock list => ConvertList(list),
+            // AlertBlock derives from QuoteBlock, so it must be matched first.
+            AlertBlock alert => ConvertAlert(alert),
             QuoteBlock quote => ConvertBlockquote(quote),
             Table table => ConvertTable(table),
             CodeBlock code => new DocumentBlock.CodeBlock(ExtractCodeText(code)),
@@ -136,6 +139,29 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
 
     private static DocumentBlock.Blockquote ConvertBlockquote(QuoteBlock quote)
     {
+        return new DocumentBlock.Blockquote(ExtractBlockquoteParagraphs(quote));
+    }
+
+    private static DocumentBlock.Blockquote ConvertAlert(AlertBlock alert)
+    {
+        return new DocumentBlock.Blockquote(ExtractBlockquoteParagraphs(alert), ParseAlertKind(alert.Kind.ToString()));
+    }
+
+    private static AlertKind ParseAlertKind(string kind)
+    {
+        return kind.ToUpperInvariant() switch
+        {
+            "NOTE" => AlertKind.Note,
+            "TIP" => AlertKind.Tip,
+            "IMPORTANT" => AlertKind.Important,
+            "WARNING" => AlertKind.Warning,
+            "CAUTION" => AlertKind.Caution,
+            _ => throw new MarkdownConversionException($"Unsupported alert type '[!{kind}]'."),
+        };
+    }
+
+    private static List<IReadOnlyList<InlineSpan>> ExtractBlockquoteParagraphs(QuoteBlock quote)
+    {
         var paragraphs = new List<IReadOnlyList<InlineSpan>>();
 
         foreach (var childBlock in quote)
@@ -146,7 +172,7 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             paragraphs.Add(ConvertInlines(paragraph.Inline));
         }
 
-        return new DocumentBlock.Blockquote(paragraphs);
+        return paragraphs;
     }
 
     private static DocumentBlock.List ConvertList(ListBlock list)

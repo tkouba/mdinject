@@ -11,10 +11,10 @@ namespace Mdinject.Docx;
 
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
-/// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes,
-/// tables, code blocks, horizontal rules, standalone images, and inline bold/italic/code/links so
-/// far - anything else in the document model throws <see cref="NotSupportedException"/> until a
-/// later pass adds it.
+/// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes
+/// (including GitHub-style alerts), tables, code blocks, horizontal rules, standalone images, and
+/// inline bold/italic/code/links so far - anything else in the document model throws
+/// <see cref="NotSupportedException"/> until a later pass adds it.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
 {
@@ -199,11 +199,25 @@ public sealed class DocxInjector : IDocumentInjector
 
     private IEnumerable<Paragraph> BuildBlockquoteParagraphs(DocumentBlock.Blockquote blockquote, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
     {
-        var resolution = styleResolver.ResolveBlockquoteStyle(configuration, templateStyles);
+        var resolution = blockquote.Alert is { } alert
+            ? styleResolver.ResolveAlertStyle(alert, configuration, templateStyles)
+            : styleResolver.ResolveBlockquoteStyle(configuration, templateStyles);
 
-        if (resolution is BlockquoteStyleResolution.DirectIndent directIndent)
-            warnings.Add(directIndent.Warning);
+        var isFallback = false;
+        switch (resolution)
+        {
+            case BlockquoteStyleResolution.DirectIndent directIndent:
+                warnings.Add(directIndent.Warning);
+                isFallback = true;
+                break;
 
+            case BlockquoteStyleResolution.NamedStyle { Warning: not null } namedStyleWithWarning:
+                warnings.Add(namedStyleWithWarning.Warning);
+                isFallback = true;
+                break;
+        }
+
+        var isFirstParagraph = true;
         foreach (var content in blockquote.Paragraphs)
         {
             var paragraphProperties = resolution switch
@@ -216,10 +230,20 @@ public sealed class DocxInjector : IDocumentInjector
 
             var paragraph = new Paragraph(paragraphProperties);
 
+            // When an alert falls back (no style of its own applied), its visual distinction is
+            // otherwise entirely lost - keep the "[!WARNING]"-style marker visible in the document
+            // itself, rather than silently dropping the one signal the reader had left.
+            if (isFirstParagraph && isFallback && blockquote.Alert is { } alertKind)
+            {
+                paragraph.AppendChild(new Run(new RunProperties(new Bold()), new Text($"[!{alertKind.ToString().ToUpperInvariant()}]")));
+                paragraph.AppendChild(new Run(new Break()));
+            }
+
             foreach (var span in content)
                 paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
 
             yield return paragraph;
+            isFirstParagraph = false;
         }
     }
 

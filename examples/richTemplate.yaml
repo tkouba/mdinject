@@ -11,7 +11,13 @@ blocks:
   paragraph: Normal
   table: Grid Table 1 Light Accent 2
   codeBlock: Code block
-  blockquote: Quote
+  blockquote: Quote 
+  horizontalRule:   
+  note:
+  tip:
+  important:
+  warning: Warning
+  caution:
 inlines:
   bold: 
   italic: 

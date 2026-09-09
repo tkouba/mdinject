@@ -23,4 +23,9 @@ public enum BlockStyleKey
     CodeBlock,
     Blockquote,
     HorizontalRule,
+    Note,
+    Tip,
+    Important,
+    Warning,
+    Caution,
 }

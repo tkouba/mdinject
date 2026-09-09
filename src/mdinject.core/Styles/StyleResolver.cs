@@ -1,4 +1,5 @@
 using Mdinject.Core.Configuration;
+using Mdinject.Core.DocumentModel;
 
 namespace Mdinject.Core.Styles;
 
@@ -119,5 +120,53 @@ public sealed class StyleResolver : IStyleResolver
         // rule - direct paragraph border formatting is the genuine intentional default, not a
         // degraded fallback, so this never warns.
         return new HorizontalRuleStyleResolution.DirectFormatting();
+    }
+
+    public BlockquoteStyleResolution ResolveAlertStyle(AlertKind kind, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    {
+        var key = AlertBlockStyleKey(kind);
+
+        if (configuration.Blocks.TryGetValue(key, out var configuredReference))
+        {
+            var configuredStyle = StyleLookup.FindByReference(configuredReference, StyleKind.Paragraph, templateStyles);
+            if (configuredStyle == null)
+                throw new StyleResolutionException($"Could not resolve configured style '{configuredReference}' for block '{key}' in the template.");
+
+            return new BlockquoteStyleResolution.NamedStyle(configuredStyle.Id);
+        }
+
+        // No style configured for this specific alert kind: fall back to whatever a plain
+        // blockquote resolves to - but always warn, even when that fallback is a real named style
+        // (the "Quote" guess), since the alert's own visual distinction (icon/color per kind) is
+        // lost either way. A plain (non-alert) blockquote resolving that same style never warns.
+        var keyName = StyleKeyNames.BlockNamesByKey[key];
+        var marker = $"[!{kind.ToString().ToUpperInvariant()}]";
+
+        return ResolveBlockquoteStyle(configuration, templateStyles) switch
+        {
+            BlockquoteStyleResolution.NamedStyle namedStyle => new BlockquoteStyleResolution.NamedStyle(
+                namedStyle.StyleId,
+                $"No style configured for the '{marker}' alert; it will use the template's 'Quote' style instead. " +
+                $"Configure '{keyName}' explicitly to silence this warning."),
+
+            BlockquoteStyleResolution.DirectIndent => new BlockquoteStyleResolution.DirectIndent(
+                $"No style configured for the '{marker}' alert, and the template has no 'Quote' style either; " +
+                $"it will be indented directly. Configure '{keyName}' (or 'blockquote') explicitly to silence this warning."),
+
+            var other => throw new InvalidOperationException($"Unexpected blockquote style resolution '{other.GetType().Name}'."),
+        };
+    }
+
+    private static BlockStyleKey AlertBlockStyleKey(AlertKind kind)
+    {
+        return kind switch
+        {
+            AlertKind.Note => BlockStyleKey.Note,
+            AlertKind.Tip => BlockStyleKey.Tip,
+            AlertKind.Important => BlockStyleKey.Important,
+            AlertKind.Warning => BlockStyleKey.Warning,
+            AlertKind.Caution => BlockStyleKey.Caution,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown alert kind."),
+        };
     }
 }

@@ -24,6 +24,11 @@ internal static class StyleKeyNames
             ["codeBlock"] = BlockStyleKey.CodeBlock,
             ["blockquote"] = BlockStyleKey.Blockquote,
             ["horizontalRule"] = BlockStyleKey.HorizontalRule,
+            ["note"] = BlockStyleKey.Note,
+            ["tip"] = BlockStyleKey.Tip,
+            ["important"] = BlockStyleKey.Important,
+            ["warning"] = BlockStyleKey.Warning,
+            ["caution"] = BlockStyleKey.Caution,
         };
 
     public static readonly IReadOnlyDictionary<string, InlineStyleKey> InlineKeysByName =

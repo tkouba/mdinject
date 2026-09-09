@@ -99,9 +99,13 @@ blocks:
   numberedList: "List Number"
   codeBlock: "Code"
   table: "Table Grid"
-  warning: "YellowParagraph"
   blockquote: "Quote"
   horizontalRule: "Horizontal Rule"
+  note: "NoteParagraph"
+  tip: "TipParagraph"
+  important: "ImportantParagraph"
+  warning: "YellowParagraph"
+  caution: "CautionParagraph"
 inlines:
   bold: 
   italic:
@@ -147,6 +151,17 @@ A construct left out of the configuration doesn't always behave the same way:
   quoted paragraph is indented directly instead (the same category of exception as bold/italic
   direct formatting) and a warning is printed. Unlike links, there's no way to configure an explicit
   blank opt-out for a block style — an absent `blockquote` key and an empty one behave the same.
+- **Alerts** (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) — a GitHub-style
+  alert is a blockquote with a type tag; each type has its own style key (`note`, `tip`,
+  `important`, `warning`, `caution`). Configuring one applies that named style in place of the
+  border/indentation the plain blockquote logic would otherwise produce. Leaving a given type
+  unconfigured falls back to exactly what an ordinary blockquote resolves to (including its own
+  "Quote" guess) — an alert never has worse default behavior than a plain blockquote. Unlike a
+  plain blockquote though, this fallback *always* prints a warning, even when it silently resolves
+  to a real "Quote" style: the alert's own visual distinction (icon/color per type) is lost either
+  way, so it's worth flagging even when the paragraph still ends up styled. Whenever this fallback
+  happens, the marker itself (e.g. `[!WARNING]`) is kept as bold text on its own line at the start
+  of the alert, so the one remaining signal isn't silently dropped along with the styling.
 - **Horizontal rules** — also never error for being unconfigured, but unlike blockquotes/links
   there's no canonical Word style name to guess, so an unconfigured rule draws a direct paragraph
   bottom border (the genuine default, not a degraded fallback — no warning either). Configuring

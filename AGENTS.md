@@ -200,7 +200,7 @@ Document
  ├─ Heading(level=1)
  ├─ Paragraph
  ├─ List(ordered)
- ├─ Blockquote
+ ├─ Blockquote(alert=Warning)
  ├─ Table
  ├─ CodeBlock
  ├─ HorizontalRule
@@ -319,6 +319,22 @@ quote); nested constructs (lists, further blockquotes, ...) aren't supported yet
 unconfigured blockquote never errors: mdinject guesses the canonical `"Quote"` paragraph style name,
 falling back to direct paragraph indentation (`w:ind w:left="720"`) with a warning if the template
 doesn't define it.
+
+### Alerts
+
+GitHub-style alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) parse via
+Markdig's `AlertBlock` (which derives from `QuoteBlock` - matched before the plain-blockquote case)
+into `DocumentBlock.Blockquote` with its `Alert` property set, rather than a separate block type -
+the marker line itself is excluded from the paragraph content by Markdig. Each kind has its own
+`BlockStyleKey` (`Note`/`Tip`/`Important`/`Warning`/`Caution`); `StyleResolver.ResolveAlertStyle`
+resolves a named style when that specific kind is configured, or falls back to exactly whatever
+`ResolveBlockquoteStyle` resolves to otherwise - an alert never behaves worse than a plain
+blockquote by default. Unlike a plain blockquote, this fallback always carries a warning (even on
+`BlockquoteStyleResolution.NamedStyle`, which normally never warns) - the alert's own visual
+distinction is lost whether or not the fallback happens to land on a real "Quote" style. On a
+fallback (but never on a configured style, which is assumed to carry its own visual distinction),
+`DocxInjector` re-adds the marker Markdig stripped as bold text (`[!WARNING]`) on its own line
+(`w:br`) at the start of the first rendered paragraph, so it isn't silently lost.
 
 ## Image Strategy
 

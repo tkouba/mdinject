@@ -12,7 +12,13 @@ public abstract record BlockquoteStyleResolution
     {
     }
 
-    public sealed record NamedStyle(string StyleId) : BlockquoteStyleResolution;
+    /// <summary>
+    /// <paramref name="Warning"/> is set when this is <see cref="StyleResolver.ResolveAlertStyle"/>
+    /// falling back to a plain blockquote's named style because the alert's own kind has no
+    /// configured style - the alert's visual distinction is lost even though a real style was
+    /// found, so this still warns, unlike a plain (non-alert) blockquote resolving the same style.
+    /// </summary>
+    public sealed record NamedStyle(string StyleId, string? Warning = null) : BlockquoteStyleResolution;
 
     public sealed record DirectIndent(string Warning) : BlockquoteStyleResolution;
 }

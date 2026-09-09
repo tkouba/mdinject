@@ -122,6 +122,48 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
+    public void Parse_PlainBlockquote_HasNoAlertKind()
+    {
+        var document = parser.Parse("> Quoted text.");
+
+        var blockquote = Assert.IsType<DocumentBlock.Blockquote>(Assert.Single(document.Blocks));
+
+        Assert.Null(blockquote.Alert);
+    }
+
+    [Theory]
+    [InlineData("NOTE", AlertKind.Note)]
+    [InlineData("TIP", AlertKind.Tip)]
+    [InlineData("IMPORTANT", AlertKind.Important)]
+    [InlineData("WARNING", AlertKind.Warning)]
+    [InlineData("CAUTION", AlertKind.Caution)]
+    [InlineData("warning", AlertKind.Warning)]
+    public void Parse_Alert_RecognizesKindCaseInsensitively(string marker, AlertKind expected)
+    {
+        var document = parser.Parse($"> [!{marker}]\n> Message.");
+
+        var blockquote = Assert.IsType<DocumentBlock.Blockquote>(Assert.Single(document.Blocks));
+
+        Assert.Equal(expected, blockquote.Alert);
+    }
+
+    [Fact]
+    public void Parse_Alert_ExcludesMarkerFromParagraphContent()
+    {
+        var document = parser.Parse("> [!WARNING]\n> Danger");
+
+        var blockquote = Assert.IsType<DocumentBlock.Blockquote>(Assert.Single(document.Blocks));
+
+        Assert.Equal("Danger", Assert.Single(Assert.Single(blockquote.Paragraphs)).Text);
+    }
+
+    [Fact]
+    public void Parse_UnsupportedAlertType_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("> [!BOGUS]\n> text"));
+    }
+
+    [Fact]
     public void Parse_Table_CapturesHeaderAndBodyRows()
     {
         var document = parser.Parse(

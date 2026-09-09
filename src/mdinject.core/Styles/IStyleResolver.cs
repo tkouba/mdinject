@@ -1,4 +1,5 @@
 using Mdinject.Core.Configuration;
+using Mdinject.Core.DocumentModel;
 
 namespace Mdinject.Core.Styles;
 
@@ -38,4 +39,12 @@ public interface IStyleResolver
     /// </summary>
     /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
     HorizontalRuleStyleResolution ResolveHorizontalRuleStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
+
+    /// <summary>
+    /// Resolves a GitHub-style alert block: a named style when that specific <paramref name="kind"/>
+    /// is configured, otherwise exactly whatever <see cref="ResolveBlockquoteStyle"/> resolves to -
+    /// an alert with no style of its own falls back to being a plain blockquote.
+    /// </summary>
+    /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
+    BlockquoteStyleResolution ResolveAlertStyle(AlertKind kind, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
 }

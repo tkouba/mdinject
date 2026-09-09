@@ -22,7 +22,13 @@ public abstract record DocumentBlock
     /// </summary>
     public sealed record List(bool Ordered, IReadOnlyList<IReadOnlyList<InlineSpan>> Items) : DocumentBlock;
 
-    public sealed record Blockquote(IReadOnlyList<IReadOnlyList<InlineSpan>> Paragraphs) : DocumentBlock;
+    /// <summary>
+    /// A blockquote, optionally tagged as a GitHub-style alert (<c>&gt; [!NOTE]</c>, etc.) via
+    /// <paramref name="Alert"/>. An alert falls back to being rendered as a plain blockquote
+    /// whenever its own type has no configured style - see
+    /// <see cref="Styles.StyleResolver.ResolveAlertStyle"/>.
+    /// </summary>
+    public sealed record Blockquote(IReadOnlyList<IReadOnlyList<InlineSpan>> Paragraphs, AlertKind? Alert = null) : DocumentBlock;
 
     /// <summary>
     /// A GitHub-style pipe table: one header row plus zero or more body rows, each cell holding a
