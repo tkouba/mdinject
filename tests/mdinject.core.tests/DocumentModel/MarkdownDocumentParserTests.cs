@@ -71,6 +71,42 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
+    public void Parse_Link_CapturesUrlOnEachSpan()
+    {
+        var document = parser.Parse("Plain [visit **us**](https://example.com/page) done.");
+
+        var paragraph = Assert.IsType<DocumentBlock.Paragraph>(Assert.Single(document.Blocks));
+
+        Assert.Contains(paragraph.Content, s => s.Text == "visit " && s.LinkUrl == "https://example.com/page" && !s.Bold);
+        Assert.Contains(paragraph.Content, s => s.Text == "us" && s.LinkUrl == "https://example.com/page" && s.Bold);
+        Assert.Contains(paragraph.Content, s => s.Text == "Plain " && s.LinkUrl == null);
+        Assert.Contains(paragraph.Content, s => s.Text == " done." && s.LinkUrl == null);
+    }
+
+    [Fact]
+    public void Parse_MailtoLink_CapturesAbsoluteUrl()
+    {
+        var document = parser.Parse("[contact](mailto:info@example.com)");
+
+        var paragraph = Assert.IsType<DocumentBlock.Paragraph>(Assert.Single(document.Blocks));
+        var span = Assert.Single(paragraph.Content);
+
+        Assert.Equal("mailto:info@example.com", span.LinkUrl);
+    }
+
+    [Fact]
+    public void Parse_RelativeLink_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("[here](./page.md)"));
+    }
+
+    [Fact]
+    public void Parse_ImageLink_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("![alt](https://example.com/image.png)"));
+    }
+
+    [Fact]
     public void Parse_OrderedList_ThrowsMarkdownConversionException()
     {
         Assert.Throws<MarkdownConversionException>(() => parser.Parse("1. First\n2. Second"));

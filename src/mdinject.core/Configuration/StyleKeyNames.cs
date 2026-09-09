@@ -30,6 +30,7 @@ internal static class StyleKeyNames
             ["bold"] = InlineStyleKey.Bold,
             ["italic"] = InlineStyleKey.Italic,
             ["code"] = InlineStyleKey.Code,
+            ["link"] = InlineStyleKey.Link,
         };
 
     public static readonly IReadOnlyDictionary<BlockStyleKey, string> BlockNamesByKey =

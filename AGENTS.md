@@ -274,6 +274,14 @@ Fenced code blocks.
 
 Relative file references.
 
+### Links
+
+`[text](url)`. Only absolute URLs (`https://...`, `mailto:...`, ...) are supported; relative URLs
+are rejected. Rendered as a native Word hyperlink (clickable regardless of configuration); the
+`link` style mapping only controls its appearance - unconfigured, it guesses the canonical
+`"Hyperlink"` character style name (falling back to unstyled if the template doesn't define it)
+rather than erroring like `code` does.
+
 ## Image Strategy
 
 Images are copied into the DOCX package.

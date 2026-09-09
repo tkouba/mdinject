@@ -20,12 +20,16 @@ public sealed class StyleMappingConfigurationGenerator : IStyleMappingConfigurat
         }
 
         // Bold/italic already default to Word's own direct formatting - nothing useful to suggest.
-        // Code has no default at all. Both are listed blank so the file documents what's available.
+        // Code has no default at all. Link guesses the canonical "Hyperlink" character style, same
+        // as headings guess their canonical paragraph style names.
+        var linkGuess = StyleLookup.FindByReference("Hyperlink", StyleKind.Character, templateStyles);
+
         var inlines = new Dictionary<InlineStyleKey, string?>
         {
             [InlineStyleKey.Bold] = null,
             [InlineStyleKey.Italic] = null,
             [InlineStyleKey.Code] = null,
+            [InlineStyleKey.Link] = linkGuess != null ? SelectDisplayReference(linkGuess) : null,
         };
 
         return new GeneratedStyleMapping(blocks, inlines);

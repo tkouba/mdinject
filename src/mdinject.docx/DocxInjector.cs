@@ -11,8 +11,8 @@ namespace Mdinject.Docx;
 
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
-/// placeholder paragraph. Supports headings, paragraphs, code blocks, and inline bold/italic/code
-/// so far - bullet lists (and anything else in the document model) throw
+/// placeholder paragraph. Supports headings, paragraphs, code blocks, and inline
+/// bold/italic/code/links so far - bullet lists (and anything else in the document model) throw
 /// <see cref="NotSupportedException"/> until a later pass adds them.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
@@ -61,7 +61,7 @@ public sealed class DocxInjector : IDocumentInjector
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    foreach (var element in ConvertBlock(block, configuration, templateStyles))
+                    foreach (var element in ConvertBlock(block, configuration, templateStyles, mainPart))
                     {
                         anchor.InsertAfterSelf(element);
                         anchor = element;
@@ -93,16 +93,16 @@ public sealed class DocxInjector : IDocumentInjector
         return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
-    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
     {
         switch (block)
         {
             case DocumentBlock.Heading heading:
-                yield return BuildParagraph(HeadingKey(heading.Level), heading.Content, configuration, templateStyles);
+                yield return BuildParagraph(HeadingKey(heading.Level), heading.Content, configuration, templateStyles, mainPart);
                 yield break;
 
             case DocumentBlock.Paragraph paragraph:
-                yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles);
+                yield return BuildParagraph(BlockStyleKey.Paragraph, paragraph.Content, configuration, templateStyles, mainPart);
                 yield break;
 
             case DocumentBlock.CodeBlock codeBlock:
@@ -131,14 +131,14 @@ public sealed class DocxInjector : IDocumentInjector
         };
     }
 
-    private Paragraph BuildParagraph(BlockStyleKey key, IReadOnlyList<InlineSpan> content, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    private Paragraph BuildParagraph(BlockStyleKey key, IReadOnlyList<InlineSpan> content, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
     {
         var styleId = styleResolver.ResolveBlockStyle(key, configuration, templateStyles);
 
         var paragraph = new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = styleId }));
 
         foreach (var span in content)
-            paragraph.AppendChild(BuildRun(span, configuration, templateStyles));
+            paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart));
 
         return paragraph;
     }
@@ -161,7 +161,7 @@ public sealed class DocxInjector : IDocumentInjector
         return paragraph;
     }
 
-    private Run BuildRun(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    private OpenXmlElement BuildRunOrHyperlink(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart)
     {
         var run = new Run();
 
@@ -171,7 +171,11 @@ public sealed class DocxInjector : IDocumentInjector
 
         run.AppendChild(new Text(span.Text) { Space = SpaceProcessingModeValues.Preserve });
 
-        return run;
+        if (span.LinkUrl == null)
+            return run;
+
+        var relationship = mainPart.AddHyperlinkRelationship(new Uri(span.LinkUrl, UriKind.Absolute), isExternal: true);
+        return new Hyperlink(run) { Id = relationship.Id, History = OnOffValue.FromBoolean(true) };
     }
 
     private RunProperties? BuildRunProperties(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
@@ -181,10 +185,14 @@ public sealed class DocxInjector : IDocumentInjector
         var italic = false;
 
         // A run can carry both a named rStyle and direct b/i overrides at once, but only one
-        // rStyle - if Code/Bold/Italic each resolve to a different named style, the first one
-        // (Code, then Bold, then Italic) wins; the others still apply as direct formatting if requested.
+        // rStyle - if Code/Link/Bold/Italic each resolve to a different named style, the first one
+        // (Code, then Link, then Bold, then Italic) wins; the others still apply as direct
+        // formatting if requested.
         if (span.Code)
             ApplyInline(InlineStyleKey.Code, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
+
+        if (span.LinkUrl != null)
+            ApplyInline(InlineStyleKey.Link, configuration, templateStyles, ref rStyleId, ref bold, ref italic);
 
         if (span.Bold)
             ApplyInline(InlineStyleKey.Bold, configuration, templateStyles, ref rStyleId, ref bold, ref italic);

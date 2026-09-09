@@ -68,6 +68,7 @@ By default, mdinject refuses to overwrite an existing `--output` file. Pass `--f
 - Tables
 - Code blocks
 - Images
+- Links
 - Markdown extension: Alerts
 
 ## Style Mapping
@@ -91,6 +92,7 @@ inlines:
   bold: 
   italic:
   code: "Inline Code"
+  link: "Hyperlink"
 ```
 
 Corporate templates may use arbitrary style names:
@@ -118,6 +120,14 @@ A construct left out of the configuration doesn't always behave the same way:
   configured explicitly if a document uses code; otherwise, it errors when encountered. Explicitly
   configuring an empty value (`code:` with nothing after it) is different from leaving the key out:
   it deliberately opts out of formatting rather than being an error.
+- **Links** — a link always becomes a real, clickable Word hyperlink regardless of configuration;
+  the `link` style only controls its *appearance* (e.g. the classic blue underline). Unlike code,
+  a link never errors for being unconfigured: mdinject guesses the canonical Word name
+  (`"Hyperlink"`) and uses it if the template defines it, otherwise the link is left unstyled but
+  still fully functional. Explicitly configuring an empty value (`link:`) always opts out of
+  styling, even if the template does define a `Hyperlink` style. Only absolute URLs
+  (`https://...`, `mailto:...`, ...) are supported — relative links have no meaningful target once
+  injected into a Word document and are rejected.
 - **Bullet/numbered lists** — not part of style mapping at all. Bullets come from a paragraph's
   direct `w:numPr`/`w:numId` reference into `numbering.xml`, the same category as bold/italic direct
   formatting rather than a named style, and aren't modeled yet.

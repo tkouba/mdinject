@@ -72,7 +72,21 @@ public sealed class StyleMappingConfigurationGeneratorTests
     {
         var mapping = generator.Generate(TemplateStyles);
 
-        Assert.Equal(3, mapping.Inlines.Count);
+        Assert.Equal(4, mapping.Inlines.Count);
         Assert.All(mapping.Inlines.Values, Assert.Null);
+    }
+
+    [Fact]
+    public void Generate_FillsLinkWhenCanonicalHyperlinkStyleExists()
+    {
+        IReadOnlyList<StyleInfo> stylesWithHyperlink =
+        [
+            .. TemplateStyles,
+            new StyleInfo("Hyperlink0", "Hyperlink", StyleKind.Character, false, null, ["Link"], false),
+        ];
+
+        var mapping = generator.Generate(stylesWithHyperlink);
+
+        Assert.Equal("Link", mapping.Inlines[InlineStyleKey.Link]);
     }
 }

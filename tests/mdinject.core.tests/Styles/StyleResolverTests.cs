@@ -152,6 +152,55 @@ public sealed class StyleResolverTests
     }
 
     [Fact]
+    public void ResolveInlineStyle_UnconfiguredLink_NoHyperlinkStyleInTemplate_ReturnsNoFormatting()
+    {
+        // Unlike Code, a link is functional without any named style, so an absent key never errors.
+        var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, StyleMappingConfiguration.Empty, TemplateStyles);
+
+        Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+    }
+
+    [Fact]
+    public void ResolveInlineStyle_UnconfiguredLink_GuessesCanonicalHyperlinkStyle()
+    {
+        IReadOnlyList<StyleInfo> stylesWithHyperlink =
+        [
+            .. TemplateStyles,
+            new StyleInfo("Hyperlink0", "Hyperlink", StyleKind.Character, false, null, [], false),
+        ];
+
+        var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, StyleMappingConfiguration.Empty, stylesWithHyperlink);
+
+        var namedStyle = Assert.IsType<InlineStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("Hyperlink0", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveInlineStyle_ExplicitlyBlankLink_ReturnsNoFormatting()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string>(),
+            new Dictionary<InlineStyleKey, string?> { [InlineStyleKey.Link] = null });
+
+        var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, configuration, TemplateStyles);
+
+        Assert.IsType<InlineStyleResolution.NoFormatting>(resolution);
+    }
+
+    [Fact]
+    public void ResolveInlineStyle_WithConfiguredLinkStyleName_ResolvesNamedStyle()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string>(),
+            new Dictionary<InlineStyleKey, string?> { [InlineStyleKey.Link] = "Strong" });
+
+        var resolution = resolver.ResolveInlineStyle(InlineStyleKey.Link, configuration, TemplateStyles);
+
+        var namedStyle = Assert.IsType<InlineStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("VYRAZNE", namedStyle.StyleId);
+    }
+
+    [Fact]
     public void ResolveInlineStyle_WithUnresolvableConfiguredReference_ThrowsStyleResolutionException()
     {
         var configuration = new StyleMappingConfiguration(

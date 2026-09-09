@@ -7,8 +7,11 @@ namespace Mdinject.Core.DocumentModel;
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
 /// only the "core skeleton" constructs for now: headings, paragraphs, unordered lists, fenced/indented
-/// code blocks, and inline bold/italic/code. Anything else (tables, images, ordered lists, alerts)
-/// throws <see cref="MarkdownConversionException"/> rather than silently dropping content.
+/// code blocks, and inline bold/italic/code/links. Anything else (tables, images, ordered lists,
+/// alerts) throws <see cref="MarkdownConversionException"/> rather than silently dropping content.
+/// Links must resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful
+/// target once the content is injected into a Word document, so they're rejected rather than
+/// silently kept as broken links.
 /// </summary>
 public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
 {
@@ -70,26 +73,26 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
         if (container == null)
             return spans;
 
-        AppendInlines(container, bold: false, italic: false, spans);
+        AppendInlines(container, bold: false, italic: false, linkUrl: null, spans);
         return spans;
     }
 
-    private static void AppendInlines(ContainerInline container, bool bold, bool italic, List<InlineSpan> spans)
+    private static void AppendInlines(ContainerInline container, bool bold, bool italic, string? linkUrl, List<InlineSpan> spans)
     {
         foreach (var inline in container)
         {
             switch (inline)
             {
                 case LiteralInline literal:
-                    spans.Add(new InlineSpan(literal.Content.ToString(), bold, italic, false));
+                    spans.Add(new InlineSpan(literal.Content.ToString(), bold, italic, false, linkUrl));
                     break;
 
                 case CodeInline code:
-                    spans.Add(new InlineSpan(code.Content, bold, italic, true));
+                    spans.Add(new InlineSpan(code.Content, bold, italic, true, linkUrl));
                     break;
 
                 case LineBreakInline:
-                    spans.Add(new InlineSpan("\n", bold, italic, false));
+                    spans.Add(new InlineSpan("\n", bold, italic, false, linkUrl));
                     break;
 
                 case EmphasisInline emphasis:
@@ -97,11 +100,21 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
                     // levels rather than a single node, so this only ever adds one flag at a time.
                     var addsBold = emphasis.DelimiterCount == 2;
                     var addsItalic = emphasis.DelimiterCount == 1;
-                    AppendInlines(emphasis, bold || addsBold, italic || addsItalic, spans);
+                    AppendInlines(emphasis, bold || addsBold, italic || addsItalic, linkUrl, spans);
+                    break;
+
+                case LinkInline { IsImage: true }:
+                    throw new MarkdownConversionException("Images are not supported yet.");
+
+                case LinkInline link:
+                    if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri))
+                        throw new MarkdownConversionException($"Link URL '{link.Url}' is not a supported absolute URL.");
+
+                    AppendInlines(link, bold, italic, uri.AbsoluteUri, spans);
                     break;
 
                 case ContainerInline nested:
-                    AppendInlines(nested, bold, italic, spans);
+                    AppendInlines(nested, bold, italic, linkUrl, spans);
                     break;
 
                 default:

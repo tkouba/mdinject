@@ -58,10 +58,21 @@ public sealed class StyleResolver : IStyleResolver
         if (key == InlineStyleKey.Bold || key == InlineStyleKey.Italic)
             return new InlineStyleResolution.DirectFormatting();
 
-        // Code has no native default. A present-but-blank value ("code:") is a deliberate opt-out;
-        // a fully absent key has no default and errors only once code is actually used.
+        // Code and Link both fall back to no named style when explicitly configured blank
+        // ("code:"/"link:") - a deliberate opt-out.
         if (isConfigured)
             return new InlineStyleResolution.NoFormatting();
+
+        // Unlike Code, a link is functional (clickable) without any named style at all, so a fully
+        // absent key isn't an error: guess Word's own canonical character style name ("Hyperlink")
+        // and fall back to no styling - never no formatting at all - if the template doesn't define it.
+        if (key == InlineStyleKey.Link)
+        {
+            var guessedStyle = StyleLookup.FindByReference("Hyperlink", StyleKind.Character, templateStyles);
+            return guessedStyle != null
+                ? new InlineStyleResolution.NamedStyle(guessedStyle.Id)
+                : new InlineStyleResolution.NoFormatting();
+        }
 
         throw new StyleResolutionException($"Inline '{key}' is not configured and has no usable default.");
     }

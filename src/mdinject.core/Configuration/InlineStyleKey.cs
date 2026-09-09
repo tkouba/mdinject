@@ -8,4 +8,5 @@ public enum InlineStyleKey
     Bold,
     Italic,
     Code,
+    Link,
 }

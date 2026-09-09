@@ -133,6 +133,75 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_LinkWithConfiguredStyle_WrapsRunInHyperlinkWithRelationshipAndStyle()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Paragraph([new InlineSpan("Example", false, false, false, "https://example.com/")]),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string>(),
+            new Dictionary<InlineStyleKey, string?> { [InlineStyleKey.Link] = "Code" });
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var mainPart = result.MainDocumentPart!;
+        var hyperlink = mainPart.Document!.Body!.Descendants<Hyperlink>().Single();
+        var run = hyperlink.Descendants<Run>().Single();
+
+        Assert.Equal("Example", run.InnerText);
+        Assert.Equal("CodeCharacter", run.RunProperties?.RunStyle?.Val);
+
+        var relationship = mainPart.HyperlinkRelationships.Single(r => r.Id == hyperlink.Id);
+        Assert.Equal("https://example.com/", relationship.Uri.ToString());
+        Assert.True(relationship.IsExternal);
+    }
+
+    [Fact]
+    public async Task InjectAsync_LinkWithoutConfiguration_StillWrapsRunInHyperlinkWithoutNamedStyle()
+    {
+        // Unlike code, a link works without any style configuration - the test template defines no
+        // "Hyperlink" style, so this falls back to an unstyled (but still clickable) hyperlink.
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Paragraph([new InlineSpan("Example", false, false, false, "https://example.com/")]),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var hyperlink = result.MainDocumentPart!.Document!.Body!.Descendants<Hyperlink>().Single();
+        var run = hyperlink.Descendants<Run>().Single();
+
+        Assert.Equal("Example", run.InnerText);
+        Assert.Null(run.RunProperties);
+    }
+
+    [Fact]
+    public async Task InjectAsync_LinkExplicitlyBlankConfiguration_WrapsRunInHyperlinkWithoutNamedStyle()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Paragraph([new InlineSpan("Example", false, false, false, "https://example.com/")]),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string>(),
+            new Dictionary<InlineStyleKey, string?> { [InlineStyleKey.Link] = null });
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var hyperlink = result.MainDocumentPart!.Document!.Body!.Descendants<Hyperlink>().Single();
+        var run = hyperlink.Descendants<Run>().Single();
+
+        Assert.Equal("Example", run.InnerText);
+        Assert.Null(run.RunProperties);
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);
