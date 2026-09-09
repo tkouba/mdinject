@@ -151,6 +151,31 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_MissingPlaceholder_DoesNotLeaveOutputFileBehind()
+    {
+        var document = new MarkdownDocument([new DocumentBlock.Paragraph([new InlineSpan("x", false, false, false)])]);
+
+        await Assert.ThrowsAsync<Core.PlaceholderNotFoundException>(
+            () => injector.InjectAsync(templatePath, outputPath, "MISSING", document, StyleMappingConfiguration.Empty));
+
+        Assert.False(File.Exists(outputPath));
+    }
+
+    [Fact]
+    public async Task InjectAsync_FailedInjection_DoesNotOverwritePreexistingOutputFile()
+    {
+        var originalBytes = new byte[] { 1, 2, 3 };
+        await File.WriteAllBytesAsync(outputPath, originalBytes);
+
+        var document = new MarkdownDocument([new DocumentBlock.Paragraph([new InlineSpan("x", false, false, false)])]);
+
+        await Assert.ThrowsAsync<Core.PlaceholderNotFoundException>(
+            () => injector.InjectAsync(templatePath, outputPath, "MISSING", document, StyleMappingConfiguration.Empty));
+
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(outputPath));
+    }
+
+    [Fact]
     public async Task InjectAsync_DoesNotModifyTemplateFile()
     {
         var originalBytes = await File.ReadAllBytesAsync(templatePath);
