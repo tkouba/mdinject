@@ -44,6 +44,10 @@ public sealed class InjectCommand(
         [CommandOption("--output <PATH>")]
         public string OutputPath { get; init; } = String.Empty;
 
+        [Description("Overwrite the output file if it already exists.")]
+        [CommandOption("--force")]
+        public bool Force { get; init; }
+
         public override ValidationResult Validate()
         {
             if (!File.Exists(TemplatePath))
@@ -57,6 +61,9 @@ public sealed class InjectCommand(
 
             if (ConfigurationPath != null && !File.Exists(ConfigurationPath))
                 return ValidationResult.Error($"Configuration file not found: {ConfigurationPath}");
+
+            if (!Force && File.Exists(OutputPath))
+                return ValidationResult.Error($"Output file already exists: {OutputPath}. Use --force to overwrite.");
 
             return ValidationResult.Success();
         }

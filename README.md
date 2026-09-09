@@ -53,8 +53,11 @@ mdinject \
   --template template.docx \
   --placeholder CONTENT \
   --input installation.md \
-  --output manual.docx 
+  --output manual.docx \
+  --force
 ```
+
+By default, mdinject refuses to overwrite an existing `--output` file. Pass `--force` to overwrite it.
 
 ## Supported Markdown (V1)
 

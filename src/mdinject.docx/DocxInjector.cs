@@ -40,31 +40,45 @@ public sealed class DocxInjector : IDocumentInjector
             templateStyles = await templateDocument.GetStylesAsync(cancellationToken);
         }
 
-        File.Copy(templatePath, outputPath, overwrite: true);
-
-        using var wordDocument = WordprocessingDocument.Open(outputPath, true);
-        var mainPart = wordDocument.MainDocumentPart ?? throw new InvalidOperationException("Template has no main document part.");
-        var body = mainPart.Document?.Body ?? throw new InvalidOperationException("Template document has no body.");
-
-        var placeholderParagraph = FindPlaceholderParagraph(body, placeholder);
-        if (placeholderParagraph == null)
-            throw new PlaceholderNotFoundException($"Placeholder '{{{{{placeholder}}}}}' was not found in the template.");
-
-        OpenXmlElement anchor = placeholderParagraph;
-        foreach (var block in document.Blocks)
+        // Work on a temporary copy so a failed injection (missing placeholder, unsupported block,
+        // style resolution error, ...) never leaves a bogus or partially-mutated file at outputPath.
+        var tempPath = outputPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            File.Copy(templatePath, tempPath, overwrite: true);
 
-            foreach (var element in ConvertBlock(block, configuration, templateStyles))
+            using (var wordDocument = WordprocessingDocument.Open(tempPath, true))
             {
-                anchor.InsertAfterSelf(element);
-                anchor = element;
+                var mainPart = wordDocument.MainDocumentPart ?? throw new InvalidOperationException("Template has no main document part.");
+                var body = mainPart.Document?.Body ?? throw new InvalidOperationException("Template document has no body.");
+
+                var placeholderParagraph = FindPlaceholderParagraph(body, placeholder);
+                if (placeholderParagraph == null)
+                    throw new PlaceholderNotFoundException($"Placeholder '{{{{{placeholder}}}}}' was not found in the template.");
+
+                OpenXmlElement anchor = placeholderParagraph;
+                foreach (var block in document.Blocks)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    foreach (var element in ConvertBlock(block, configuration, templateStyles))
+                    {
+                        anchor.InsertAfterSelf(element);
+                        anchor = element;
+                    }
+                }
+
+                placeholderParagraph.Remove();
+
+                mainPart.Document.Save();
             }
+
+            File.Copy(tempPath, outputPath, overwrite: true);
         }
-
-        placeholderParagraph.Remove();
-
-        mainPart.Document.Save();
+        finally
+        {
+            File.Delete(tempPath);
+        }
     }
 
     private static Paragraph? FindPlaceholderParagraph(Body body, string placeholder)
