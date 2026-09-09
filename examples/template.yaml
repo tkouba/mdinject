@@ -5,9 +5,6 @@ blocks:
   heading4: heading 4
   heading5: heading 5
   heading6: heading 6
-  heading7: heading 7
-  heading8: heading 8
-  heading9: heading 9
   paragraph: Normal
   table: Normal Table
   codeBlock: Normal

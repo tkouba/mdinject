@@ -33,9 +33,6 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Heading4] = StyleKind.Paragraph,
         [BlockStyleKey.Heading5] = StyleKind.Paragraph,
         [BlockStyleKey.Heading6] = StyleKind.Paragraph,
-        [BlockStyleKey.Heading7] = StyleKind.Paragraph,
-        [BlockStyleKey.Heading8] = StyleKind.Paragraph,
-        [BlockStyleKey.Heading9] = StyleKind.Paragraph,
         [BlockStyleKey.Paragraph] = StyleKind.Paragraph,
         [BlockStyleKey.CodeBlock] = StyleKind.Paragraph,
         [BlockStyleKey.Blockquote] = StyleKind.Paragraph,
@@ -64,9 +61,6 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Heading4] = "heading 4",
         [BlockStyleKey.Heading5] = "heading 5",
         [BlockStyleKey.Heading6] = "heading 6",
-        [BlockStyleKey.Heading7] = "heading 7",
-        [BlockStyleKey.Heading8] = "heading 8",
-        [BlockStyleKey.Heading9] = "heading 9",
         [BlockStyleKey.Blockquote] = "Quote",
     };
 }

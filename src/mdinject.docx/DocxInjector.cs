@@ -155,10 +155,8 @@ public sealed class DocxInjector : IDocumentInjector
             4 => BlockStyleKey.Heading4,
             5 => BlockStyleKey.Heading5,
             6 => BlockStyleKey.Heading6,
-            7 => BlockStyleKey.Heading7,
-            8 => BlockStyleKey.Heading8,
-            9 => BlockStyleKey.Heading9,
-            _ => throw new NotSupportedException($"Heading level {level} is not supported (must be 1-9)."),
+            // CommonMark ATX headings (# through ######) only go up to level 6.
+            _ => throw new NotSupportedException($"Heading level {level} is not supported (must be 1-6)."),
         };
     }
 
