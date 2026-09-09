@@ -342,6 +342,91 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_Table_RendersHeaderAndBodyRowsWithResolvedStyles()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Table(
+                HeaderCells: [[new InlineSpan("Name", false, false, false)], [new InlineSpan("Role", false, false, false)]],
+                Rows:
+                [
+                    [[new InlineSpan("Alice", false, false, false)], [new InlineSpan("Engineer", false, false, false)]],
+                    [[new InlineSpan("Bob", true, false, false)], [new InlineSpan("Manager", false, false, false)]],
+                ]),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var table = result.MainDocumentPart!.Document!.Body!.Elements<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
+
+        Assert.Equal("NormalTable", table.TableProperties?.TableStyle?.Val);
+        Assert.Equal(2, table.Elements<TableGrid>().Single().Elements<GridColumn>().Count());
+
+        var rows = table.Elements<TableRow>().ToList();
+        Assert.Equal(3, rows.Count);
+
+        var headerRow = rows[0];
+        Assert.NotNull(headerRow.TableRowProperties?.GetFirstChild<TableHeader>());
+        var headerCells = headerRow.Elements<TableCell>().ToList();
+        Assert.Equal(["Name", "Role"], headerCells.Select(GetCellText));
+
+        var bodyRow = rows[1];
+        Assert.Null(bodyRow.TableRowProperties);
+        Assert.Equal(["Alice", "Engineer"], bodyRow.Elements<TableCell>().Select(GetCellText));
+
+        var boldRun = rows[2].Elements<TableCell>().First().Descendants<Run>().Single();
+        Assert.Equal("Bob", boldRun.InnerText);
+        Assert.NotNull(boldRun.RunProperties?.Bold);
+
+        var cellParagraph = headerCells[0].Elements<Paragraph>().Single();
+        Assert.Equal("Normal", cellParagraph.ParagraphProperties?.ParagraphStyleId?.Val);
+    }
+
+    [Fact]
+    public async Task InjectAsync_Table_IsFollowedByAnEmptyParagraph()
+    {
+        // A table can't be the last body content, or immediately followed by another table,
+        // without an intervening paragraph.
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Table(
+                HeaderCells: [[new InlineSpan("A", false, false, false)]],
+                Rows: []),
+        ]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var body = result.MainDocumentPart!.Document!.Body!;
+        var table = body.Elements<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
+
+        Assert.IsType<Paragraph>(table.NextSibling());
+    }
+
+    [Fact]
+    public async Task InjectAsync_TableWithConfiguredStyle_AppliesConfiguredTableStyle()
+    {
+        var document = new MarkdownDocument(
+        [
+            new DocumentBlock.Table(
+                HeaderCells: [[new InlineSpan("A", false, false, false)]],
+                Rows: []),
+        ]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.Table] = "Normal Table" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var table = result.MainDocumentPart!.Document!.Body!.Elements<DocumentFormat.OpenXml.Wordprocessing.Table>().Single();
+
+        Assert.Equal("NormalTable", table.TableProperties?.TableStyle?.Val);
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);
@@ -410,6 +495,11 @@ public sealed class DocxInjectorTests : IDisposable
         return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
+    private static string GetCellText(TableCell cell)
+    {
+        return String.Concat(cell.Descendants<Text>().Select(t => t.Text));
+    }
+
     private static void CreateTestTemplate(string path)
     {
         using var document = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
@@ -445,6 +535,10 @@ public sealed class DocxInjectorTests : IDisposable
         codeCharacterStyle.Append(new StyleName { Val = "Code" });
         codeCharacterStyle.Append(new BasedOn { Val = "DefaultParagraphFont" });
         styles.Append(codeCharacterStyle);
+
+        var defaultTableStyle = new Style { Type = StyleValues.Table, StyleId = "NormalTable", Default = true };
+        defaultTableStyle.Append(new StyleName { Val = "Normal Table" });
+        styles.Append(defaultTableStyle);
 
         stylesPart.Styles = styles;
         stylesPart.Styles.Save();

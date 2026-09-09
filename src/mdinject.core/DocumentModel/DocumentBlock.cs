@@ -2,8 +2,7 @@ namespace Mdinject.Core.DocumentModel;
 
 /// <summary>
 /// A block-level construct in the internal document model, per AGENTS.md:
-/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock. Table is not modeled yet
-/// (deferred to a later pass).
+/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock.
 /// </summary>
 public abstract record DocumentBlock
 {
@@ -24,6 +23,16 @@ public abstract record DocumentBlock
     public sealed record List(bool Ordered, IReadOnlyList<IReadOnlyList<InlineSpan>> Items) : DocumentBlock;
 
     public sealed record Blockquote(IReadOnlyList<IReadOnlyList<InlineSpan>> Paragraphs) : DocumentBlock;
+
+    /// <summary>
+    /// A GitHub-style pipe table: one header row plus zero or more body rows, each cell holding a
+    /// single run of inline content (a cell is not a full nested block). Column alignment and
+    /// nested block content within a cell aren't modeled - no presentation properties, per the
+    /// document model's constraints.
+    /// </summary>
+    public sealed record Table(
+        IReadOnlyList<IReadOnlyList<InlineSpan>> HeaderCells,
+        IReadOnlyList<IReadOnlyList<IReadOnlyList<InlineSpan>>> Rows) : DocumentBlock;
 
     public sealed record CodeBlock(string Text) : DocumentBlock;
 }

@@ -11,9 +11,9 @@ namespace Mdinject.Docx;
 
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
-/// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes, code
-/// blocks, and inline bold/italic/code/links so far - anything else in the document model throws
-/// <see cref="NotSupportedException"/> until a later pass adds it.
+/// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes,
+/// tables, code blocks, and inline bold/italic/code/links so far - anything else in the document
+/// model throws <see cref="NotSupportedException"/> until a later pass adds it.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
 {
@@ -119,6 +119,13 @@ public sealed class DocxInjector : IDocumentInjector
                     yield return paragraph;
                 yield break;
 
+            case DocumentBlock.Table table:
+                yield return BuildTable(table, configuration, templateStyles, mainPart, warnings);
+                // A table can't be the last body content, or immediately followed by another
+                // table, without an intervening paragraph - always add one to be safe.
+                yield return new Paragraph();
+                yield break;
+
             case DocumentBlock.CodeBlock codeBlock:
                 yield return BuildCodeParagraph(codeBlock, configuration, templateStyles);
                 yield break;
@@ -204,6 +211,67 @@ public sealed class DocxInjector : IDocumentInjector
 
             yield return paragraph;
         }
+    }
+
+    private Table BuildTable(DocumentBlock.Table table, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
+    {
+        var tableStyleId = styleResolver.ResolveBlockStyle(BlockStyleKey.Table, configuration, templateStyles);
+        var paragraphStyleId = styleResolver.ResolveBlockStyle(BlockStyleKey.Paragraph, configuration, templateStyles);
+
+        var tableElement = new Table(
+            new TableProperties(
+                new TableStyle { Val = tableStyleId },
+                new TableWidth { Width = "0", Type = TableWidthUnitValues.Auto },
+                new TableLook
+                {
+                    FirstRow = OnOffValue.FromBoolean(true),
+                    LastRow = OnOffValue.FromBoolean(false),
+                    FirstColumn = OnOffValue.FromBoolean(true),
+                    LastColumn = OnOffValue.FromBoolean(false),
+                    NoHorizontalBand = OnOffValue.FromBoolean(false),
+                    NoVerticalBand = OnOffValue.FromBoolean(true),
+                }));
+
+        var tableGrid = new TableGrid();
+        for (var i = 0; i < table.HeaderCells.Count; i++)
+            tableGrid.AppendChild(new GridColumn());
+        tableElement.AppendChild(tableGrid);
+
+        tableElement.AppendChild(BuildTableRow(table.HeaderCells, paragraphStyleId, configuration, templateStyles, mainPart, warnings, isHeader: true));
+
+        foreach (var row in table.Rows)
+            tableElement.AppendChild(BuildTableRow(row, paragraphStyleId, configuration, templateStyles, mainPart, warnings, isHeader: false));
+
+        return tableElement;
+    }
+
+    private TableRow BuildTableRow(
+        IReadOnlyList<IReadOnlyList<InlineSpan>> cells,
+        string paragraphStyleId,
+        StyleMappingConfiguration configuration,
+        IReadOnlyList<StyleInfo> templateStyles,
+        MainDocumentPart mainPart,
+        List<string> warnings,
+        bool isHeader)
+    {
+        var row = new TableRow();
+
+        if (isHeader)
+            row.AppendChild(new TableRowProperties(new TableHeader()));
+
+        foreach (var cellContent in cells)
+        {
+            var cell = new TableCell(new TableCellProperties(new TableCellWidth { Width = "0", Type = TableWidthUnitValues.Auto }));
+
+            var paragraph = new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = paragraphStyleId }));
+            foreach (var span in cellContent)
+                paragraph.AppendChild(BuildRunOrHyperlink(span, configuration, templateStyles, mainPart, warnings));
+
+            cell.AppendChild(paragraph);
+            row.AppendChild(cell);
+        }
+
+        return row;
     }
 
     private Paragraph BuildCodeParagraph(DocumentBlock.CodeBlock codeBlock, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)

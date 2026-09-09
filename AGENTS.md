@@ -277,7 +277,11 @@ at "1."; list items use the resolved `paragraph` style.
 
 ### Tables
 
-GitHub-style Markdown tables.
+GitHub-style pipe tables (a header row is required; no column alignment, no nested block content
+in a cell). Rendered as a real Word `w:tbl` using the resolved `table`/`paragraph` styles, with the
+header row marked `w:tblHeader` so a template's own conditional header-row formatting (if any)
+applies - never direct formatting. A table is always followed by an empty paragraph, since OOXML
+doesn't allow one to be the last body content or immediately followed by another table.
 
 ### Code Blocks
 

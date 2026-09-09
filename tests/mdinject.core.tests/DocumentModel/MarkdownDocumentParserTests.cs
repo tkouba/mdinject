@@ -122,6 +122,72 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
+    public void Parse_Table_CapturesHeaderAndBodyRows()
+    {
+        var document = parser.Parse(
+            """
+            | Name | Role |
+            | --- | --- |
+            | Alice | Engineer |
+            | Bob | Manager |
+            """);
+
+        var table = Assert.IsType<DocumentBlock.Table>(Assert.Single(document.Blocks));
+
+        Assert.Equal(["Name", "Role"], table.HeaderCells.Select(c => Assert.Single(c).Text));
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal(["Alice", "Engineer"], table.Rows[0].Select(c => Assert.Single(c).Text));
+        Assert.Equal(["Bob", "Manager"], table.Rows[1].Select(c => Assert.Single(c).Text));
+    }
+
+    [Fact]
+    public void Parse_TableCellEndingInBold_DoesNotProduceTrailingEmptySpan()
+    {
+        // Markdig's pipe-table cell parser appends a spurious empty inline after a cell ending in
+        // bold/italic - the parser must filter it rather than emit a pointless empty run.
+        var document = parser.Parse(
+            """
+            | A |
+            | --- |
+            | **x** |
+            """);
+
+        var table = Assert.IsType<DocumentBlock.Table>(Assert.Single(document.Blocks));
+        var cell = Assert.Single(table.Rows[0]);
+
+        var span = Assert.Single(cell);
+        Assert.Equal("x", span.Text);
+        Assert.True(span.Bold);
+    }
+
+    [Fact]
+    public void Parse_TableWithoutHeaderSeparator_ThrowsMarkdownConversionException()
+    {
+        // Without a "| --- |" delimiter row, this isn't recognized as a pipe table at all - it
+        // parses as an ordinary paragraph, so the pipe characters end up as unsupported inline text.
+        var document = parser.Parse("| Name | Role |\n| Alice | Engineer |");
+
+        Assert.IsNotType<DocumentBlock.Table>(Assert.Single(document.Blocks));
+    }
+
+    [Fact]
+    public void Parse_TableInlineContent_SupportsBoldAndLinks()
+    {
+        var document = parser.Parse(
+            """
+            | Name |
+            | --- |
+            | [Alice](https://example.com) |
+            """);
+
+        var table = Assert.IsType<DocumentBlock.Table>(Assert.Single(document.Blocks));
+        var span = Assert.Single(Assert.Single(table.Rows[0]));
+
+        Assert.Equal("Alice", span.Text);
+        Assert.Equal("https://example.com/", span.LinkUrl);
+    }
+
+    [Fact]
     public void Parse_Link_CapturesUrlOnEachSpan()
     {
         var document = parser.Parse("Plain [visit **us**](https://example.com/page) done.");
