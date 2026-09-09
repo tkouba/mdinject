@@ -83,6 +83,26 @@ mdinject --template template.docx --placeholder CONTENT --input installation.md 
 - Links
 - Markdown extension: Alerts
 
+## Known Limitations (V1)
+
+Structural boundaries that aren't a style-mapping concern — they're either rejected outright at
+parse time or silently fall back to something else, regardless of configuration:
+
+- **No nesting** — a bullet/numbered list item is limited to a single paragraph; a blockquote can't
+  contain a nested list, table, or another blockquote; a table cell holds a single run of inline
+  content, not a full nested block. Violating this throws a clear error rather than silently
+  dropping content.
+- **Tables** — no column alignment (`:---`, `---:`, `:---:` are parsed but ignored).
+- **Ordered lists** — always restart at "1.", even if the markdown specifies a different start
+  number (e.g. `3. Item`).
+- **Images** — PNG and JPEG only; only a local file path (relative to the markdown file, or
+  absolute) is accepted, never a remote URL; must be the only content of its paragraph — mixed with
+  other text, or nested inside emphasis/a link, it's rejected instead.
+- **Alerts** — the `[!KIND]` marker must be alone on the blockquote's first line, per strict GFM
+  syntax. `> [!WARNING] Danger` (text on the same line) isn't recognized as an alert at all — it
+  silently parses as an ordinary blockquote instead of erroring, so a mistyped alert can go
+  unnoticed unless you check the rendered output.
+
 ## Style Mapping
 
 Default style mapping from standard Word template.
