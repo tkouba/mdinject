@@ -28,11 +28,11 @@ At nondum frustraque non avriga: menti Proetus; o! Sentit quod secantes stetit
 **tales huius maestam**; ora causa ipse, alis. Facto inscribenda iuvere est
 inmurmurat fuit fertis dedisset vetuere quarum.
 
-\`\`\`
+```
 wimax = 56 - 4 / 3 + solarius(ipv.cpuServletFinder.software_gis(link));
 e.checksum(bccOfWorkstation);
 uml_ipad_log += donationwareRegularIp;
-\`\`\`
+```
 
 Feruntur latitant nefas, missus disiectisque peperit.
 

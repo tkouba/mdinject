@@ -349,6 +349,14 @@ inlines:
 
 Blocks are mapped to paragraph docx style types. Inlines are mapped to character docx style types.
 
+### Command-line overrides
+
+Both `mdinject` (inject) and `mdinject create configuration` accept repeatable `--blocks`/
+`--inlines <KEY=VALUE>` options (Spectre.Console.Cli dictionary options, split on `=`), using the
+same flat key names as the YAML file. `StyleMappingConfigurationOverrides.Apply` layers these on top
+of a loaded/generated mapping - an override always wins - reusing the same key-name resolution and
+blank-value rules as `StyleMappingConfigurationLoader` (`RawStyleMappingNormalizer`, shared by both).
+
 ### DOCX style resolver
 
 How to find DOCX style from markdown style using configuration:

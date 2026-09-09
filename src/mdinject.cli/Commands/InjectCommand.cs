@@ -49,6 +49,14 @@ public sealed class InjectCommand(
         [CommandOption("--force")]
         public bool Force { get; init; }
 
+        [Description("Override or add a block style mapping, e.g. --blocks heading1=\"Heading 1\". Repeatable; takes precedence over --configuration.")]
+        [CommandOption("--blocks <KEY=VALUE>")]
+        public IDictionary<string, string>? Blocks { get; init; }
+
+        [Description("Override or add an inline style mapping, e.g. --inlines code=\"Inline Code\". Repeatable; takes precedence over --configuration.")]
+        [CommandOption("--inlines <KEY=VALUE>")]
+        public IDictionary<string, string>? Inlines { get; init; }
+
         public override ValidationResult Validate()
         {
             if (!File.Exists(TemplatePath))
@@ -77,6 +85,8 @@ public sealed class InjectCommand(
             var configuration = settings.ConfigurationPath != null
                 ? await _configurationLoader.LoadAsync(settings.ConfigurationPath, cancellationToken)
                 : StyleMappingConfiguration.Empty;
+
+            configuration = StyleMappingConfigurationOverrides.Apply(configuration, settings.Blocks, settings.Inlines);
 
             var markdown = await File.ReadAllTextAsync(settings.InputPath, cancellationToken);
             var document = _parser.Parse(markdown);

@@ -59,6 +59,16 @@ mdinject \
 
 By default, mdinject refuses to overwrite an existing `--output` file. Pass `--force` to overwrite it.
 
+Override or add individual style-mapping entries from the command line with `--blocks`/`--inlines`,
+using the same key names as the YAML file (see [Style Mapping](#style-mapping)). Both are
+repeatable and take precedence over whatever `--configuration` loaded:
+
+```bash
+mdinject --template template.docx --placeholder CONTENT --input installation.md --output manual.docx \
+  --blocks heading1="Heading 1" --blocks paragraph=Normal \
+  --inlines code="Inline Code"
+```
+
 ## Supported Markdown (V1)
 
 - Headings (1-6)
@@ -227,6 +237,14 @@ can't resolve (like code) is left blank for you to fill in — see
 Command line
 ```bash
 mdinject create configuration template.docx --output style-mapping.yaml
+```
+
+Fill in (or override) specific entries directly with `--blocks`/`--inlines`, e.g. to supply the
+constructs mdinject couldn't guess on its own:
+
+```bash
+mdinject create configuration template.docx --output style-mapping.yaml \
+  --blocks codeBlock=Code --inlines code="Inline Code"
 ```
 
 ### list placeholders

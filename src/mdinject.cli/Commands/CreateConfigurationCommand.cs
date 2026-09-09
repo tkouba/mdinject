@@ -35,6 +35,14 @@ public sealed class CreateConfigurationCommand(
         [CommandOption("-f|--force")]
         public bool Force { get; init; }
 
+        [Description("Override or add a block style mapping in the generated file, e.g. --blocks heading1=\"Heading 1\". Repeatable.")]
+        [CommandOption("--blocks <KEY=VALUE>")]
+        public IDictionary<string, string>? Blocks { get; init; }
+
+        [Description("Override or add an inline style mapping in the generated file, e.g. --inlines code=\"Inline Code\". Repeatable.")]
+        [CommandOption("--inlines <KEY=VALUE>")]
+        public IDictionary<string, string>? Inlines { get; init; }
+
         public override ValidationResult Validate()
         {
             if (!File.Exists(TemplatePath))
@@ -49,15 +57,24 @@ public sealed class CreateConfigurationCommand(
 
     protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        using var templateDocument = _templateDocumentFactory.Open(settings.TemplatePath);
-        var styles = await templateDocument.GetStylesAsync(cancellationToken);
+        try
+        {
+            using var templateDocument = _templateDocumentFactory.Open(settings.TemplatePath);
+            var styles = await templateDocument.GetStylesAsync(cancellationToken);
 
-        var mapping = _generator.Generate(styles);
+            var mapping = _generator.Generate(styles);
+            mapping = StyleMappingConfigurationOverrides.Apply(mapping, settings.Blocks, settings.Inlines);
 
-        await _writer.WriteAsync(settings.OutputPath, mapping, cancellationToken);
+            await _writer.WriteAsync(settings.OutputPath, mapping, cancellationToken);
 
-        AnsiConsole.MarkupLine($"[green]Style mapping configuration written to[/] {settings.OutputPath}");
+            AnsiConsole.MarkupLine($"[green]Style mapping configuration written to[/] {settings.OutputPath}");
 
-        return 0;
+            return 0;
+        }
+        catch (StyleMappingConfigurationException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            return 1;
+        }
     }
 }

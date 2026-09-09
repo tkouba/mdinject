@@ -94,6 +94,62 @@ public sealed class InjectCommandIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_BlocksOption_OverridesResolvedStyle()
+    {
+        await File.WriteAllTextAsync(inputPath, "Body text.\n");
+
+        var exitCode = await Program.Main(
+            ["--template", templatePath, "--placeholder", "CONTENT", "--input", inputPath, "--output", outputPath, "--blocks", "paragraph=heading 1"]);
+
+        Assert.Equal(0, exitCode);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => String.Concat(p.Descendants<Text>().Select(t => t.Text)) == "Body text.");
+
+        Assert.Equal("Heading1", paragraph.ParagraphProperties?.ParagraphStyleId?.Val);
+    }
+
+    [Fact]
+    public async Task Main_BlocksOption_TakesPrecedenceOverConfigurationFile()
+    {
+        var configurationPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.yaml");
+        await File.WriteAllTextAsync(configurationPath, "blocks:\n  paragraph: Normal\n");
+        await File.WriteAllTextAsync(inputPath, "Body text.\n");
+
+        try
+        {
+            var exitCode = await Program.Main(
+            [
+                "--template", templatePath, "--placeholder", "CONTENT", "--input", inputPath, "--output", outputPath,
+                "--configuration", configurationPath, "--blocks", "paragraph=heading 1",
+            ]);
+
+            Assert.Equal(0, exitCode);
+
+            using var result = WordprocessingDocument.Open(outputPath, false);
+            var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => String.Concat(p.Descendants<Text>().Select(t => t.Text)) == "Body text.");
+
+            Assert.Equal("Heading1", paragraph.ParagraphProperties?.ParagraphStyleId?.Val);
+        }
+        finally
+        {
+            File.Delete(configurationPath);
+        }
+    }
+
+    [Fact]
+    public async Task Main_UnknownBlocksKey_ReturnsOneWithoutWritingOutput()
+    {
+        await File.WriteAllTextAsync(inputPath, "Body text.\n");
+
+        var exitCode = await Program.Main(
+            ["--template", templatePath, "--placeholder", "CONTENT", "--input", inputPath, "--output", outputPath, "--blocks", "nosuchkey=Foo"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.False(File.Exists(outputPath));
+    }
+
+    [Fact]
     public async Task Main_UnsupportedMarkdownConstruct_ReturnsOne()
     {
         await File.WriteAllTextAsync(inputPath, "![alt](https://example.com/image.png)\n");
