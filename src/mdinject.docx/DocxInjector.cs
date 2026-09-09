@@ -12,8 +12,9 @@ namespace Mdinject.Docx;
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
 /// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes,
-/// tables, code blocks, horizontal rules, and inline bold/italic/code/links so far - anything else
-/// in the document model throws <see cref="NotSupportedException"/> until a later pass adds it.
+/// tables, code blocks, horizontal rules, standalone images, and inline bold/italic/code/links so
+/// far - anything else in the document model throws <see cref="NotSupportedException"/> until a
+/// later pass adds it.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
 {
@@ -32,6 +33,7 @@ public sealed class DocxInjector : IDocumentInjector
         string placeholder,
         MarkdownDocument document,
         StyleMappingConfiguration configuration,
+        string basePath = ".",
         CancellationToken cancellationToken = default)
     {
         IReadOnlyList<StyleInfo> templateStyles;
@@ -63,7 +65,7 @@ public sealed class DocxInjector : IDocumentInjector
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    foreach (var element in ConvertBlock(block, configuration, templateStyles, mainPart, warnings))
+                    foreach (var element in ConvertBlock(block, configuration, templateStyles, mainPart, warnings, basePath))
                     {
                         anchor.InsertAfterSelf(element);
                         anchor = element;
@@ -97,7 +99,7 @@ public sealed class DocxInjector : IDocumentInjector
         return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
     }
 
-    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)
+    private IEnumerable<OpenXmlElement> ConvertBlock(DocumentBlock block, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings, string basePath)
     {
         switch (block)
         {
@@ -132,6 +134,10 @@ public sealed class DocxInjector : IDocumentInjector
 
             case DocumentBlock.HorizontalRule:
                 yield return BuildHorizontalRuleParagraph(configuration, templateStyles);
+                yield break;
+
+            case DocumentBlock.Image image:
+                yield return BuildImageParagraph(image, configuration, templateStyles, mainPart, basePath);
                 yield break;
 
             default:
@@ -308,6 +314,14 @@ public sealed class DocxInjector : IDocumentInjector
         // available to guess (unlike blockquote/link).
         var border = new BottomBorder { Val = BorderValues.Single, Size = 6, Space = 1, Color = "auto" };
         return new Paragraph(new ParagraphProperties(new ParagraphBorders(border)));
+    }
+
+    private Paragraph BuildImageParagraph(DocumentBlock.Image image, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, string basePath)
+    {
+        var styleId = styleResolver.ResolveBlockStyle(BlockStyleKey.Paragraph, configuration, templateStyles);
+        var run = ImageEmbedder.BuildImageRun(mainPart, basePath, image);
+
+        return new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = styleId }), run);
     }
 
     private OpenXmlElement BuildRunOrHyperlink(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)

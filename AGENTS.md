@@ -203,7 +203,8 @@ Document
  ├─ Blockquote
  ├─ Table
  ├─ CodeBlock
- └─ HorizontalRule
+ ├─ HorizontalRule
+ └─ Image
 ```
 
 The model intentionally contains no presentation properties.
@@ -297,7 +298,11 @@ with the named style instead, per `StyleResolver.ResolveHorizontalRuleStyle`.
 
 ### Images
 
-Relative file references.
+`![alt](path)` as the only content of its paragraph - mixed with other text or inline formatting
+in the same paragraph is rejected. `path` must be a local file, relative (resolved against the
+markdown file's own directory) or absolute; remote URLs are rejected, the opposite rule from links.
+PNG and JPEG are the only formats supported so far. No resizing, cropping, or format conversion:
+embedded at its natural pixel size (96 DPI), always as a plain inline drawing.
 
 ### Links
 
@@ -317,7 +322,10 @@ doesn't define it.
 
 ## Image Strategy
 
-Images are copied into the DOCX package.
+Images are embedded into the DOCX package as a real inline drawing (`w:drawing`/`wp:inline`), not
+just referenced - `ImageEmbedder` (mdinject.docx) reads the file, adds an `ImagePart`, and reads its
+pixel dimensions directly from the file header (no imaging library dependency; only PNG/JPEG are
+implemented) to size the drawing.
 
 Example:
 
@@ -327,9 +335,10 @@ Example:
 
 Rules:
 
-- preserve aspect ratio
-- use default sizing initially
-- no advanced layout in V1
+- preserve aspect ratio - always true, since sizing comes directly from the file's own natural
+  pixel dimensions (at 96 DPI), never a separately specified width/height
+- use default sizing initially - natural size, no cropping/resizing/format conversion
+- no advanced layout in V1 - always a plain inline drawing, never floating/anchored/wrapped
 
 ## Error Handling
 

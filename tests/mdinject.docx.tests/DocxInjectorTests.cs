@@ -12,6 +12,7 @@ public sealed class DocxInjectorTests : IDisposable
 {
     private readonly string templatePath;
     private readonly string outputPath;
+    private readonly string imagesDirectory;
     private readonly DocxInjector injector;
 
     public DocxInjectorTests()
@@ -19,6 +20,9 @@ public sealed class DocxInjectorTests : IDisposable
         templatePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.docx");
         outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.docx");
         CreateTestTemplate(templatePath);
+
+        imagesDirectory = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
+        Directory.CreateDirectory(imagesDirectory);
 
         injector = new DocxInjector(new DocxTemplateDocumentFactory(), new StyleResolver());
     }
@@ -474,6 +478,97 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_PngImage_EmbedsAtNaturalPixelSizeAndAltText()
+    {
+        var imagePath = Path.Combine(imagesDirectory, "diagram.png");
+        CreateMinimalPng(imagePath, width: 64, height: 32);
+
+        var document = new MarkdownDocument([new DocumentBlock.Image("diagram.png", "A diagram")]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: imagesDirectory);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var mainPart = result.MainDocumentPart!;
+
+        Assert.Single(mainPart.ImageParts);
+
+        var docPr = mainPart.Document!.Body!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>().Single();
+        Assert.Equal("A diagram", docPr.Description);
+
+        var extent = mainPart.Document.Body.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent>().Single();
+        Assert.Equal(64 * 9525L, extent.Cx!.Value);
+        Assert.Equal(32 * 9525L, extent.Cy!.Value);
+    }
+
+    [Fact]
+    public async Task InjectAsync_JpegImage_EmbedsAtNaturalPixelSize()
+    {
+        var imagePath = Path.Combine(imagesDirectory, "photo.jpg");
+        CreateMinimalJpeg(imagePath, width: 100, height: 50);
+
+        var document = new MarkdownDocument([new DocumentBlock.Image("photo.jpg", "")]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: imagesDirectory);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var extent = result.MainDocumentPart!.Document!.Body!.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.Extent>().Single();
+
+        Assert.Equal(100 * 9525L, extent.Cx!.Value);
+        Assert.Equal(50 * 9525L, extent.Cy!.Value);
+    }
+
+    [Fact]
+    public async Task InjectAsync_ImageUsesResolvedParagraphStyle()
+    {
+        CreateMinimalPng(Path.Combine(imagesDirectory, "diagram.png"), 10, 10);
+
+        var document = new MarkdownDocument([new DocumentBlock.Image("diagram.png", "alt")]);
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: imagesDirectory);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Descendants<Drawing>().Single().Parent!.Parent as Paragraph;
+
+        Assert.Equal("Normal", paragraph?.ParagraphProperties?.ParagraphStyleId?.Val);
+    }
+
+    [Fact]
+    public async Task InjectAsync_ImageFileMissing_ThrowsImageProcessingException()
+    {
+        var document = new MarkdownDocument([new DocumentBlock.Image("does-not-exist.png", "alt")]);
+
+        await Assert.ThrowsAsync<Core.ImageProcessingException>(
+            () => injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: imagesDirectory));
+    }
+
+    [Fact]
+    public async Task InjectAsync_UnsupportedImageFormat_ThrowsImageProcessingException()
+    {
+        var imagePath = Path.Combine(imagesDirectory, "icon.bmp");
+        File.WriteAllBytes(imagePath, [0x42, 0x4D]);
+
+        var document = new MarkdownDocument([new DocumentBlock.Image("icon.bmp", "alt")]);
+
+        await Assert.ThrowsAsync<Core.ImageProcessingException>(
+            () => injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: imagesDirectory));
+    }
+
+    [Fact]
+    public async Task InjectAsync_AbsoluteImagePath_IgnoresBasePath()
+    {
+        var absolutePath = Path.Combine(imagesDirectory, "absolute.png");
+        CreateMinimalPng(absolutePath, 20, 20);
+
+        var document = new MarkdownDocument([new DocumentBlock.Image(absolutePath, "alt")]);
+
+        // basePath points elsewhere entirely - an absolute image Source must not be combined with it.
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty, basePath: Path.GetTempPath());
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        Assert.Single(result.MainDocumentPart!.ImageParts);
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);
@@ -535,11 +630,59 @@ public sealed class DocxInjectorTests : IDisposable
 
         if (File.Exists(outputPath))
             File.Delete(outputPath);
+
+        if (Directory.Exists(imagesDirectory))
+            Directory.Delete(imagesDirectory, recursive: true);
     }
 
     private static string GetText(Paragraph paragraph)
     {
         return String.Concat(paragraph.Descendants<Text>().Select(t => t.Text));
+    }
+
+    /// <summary>
+    /// Writes just enough of a PNG file for <c>ImageEmbedder</c>'s dimension reader (which only
+    /// ever looks at the signature and the IHDR chunk's width/height) - not a real, decodable image.
+    /// </summary>
+    private static void CreateMinimalPng(string path, int width, int height)
+    {
+        var bytes = new List<byte>();
+        bytes.AddRange([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); // PNG signature
+        bytes.AddRange(BigEndianBytes(13)); // IHDR chunk data length
+        bytes.AddRange("IHDR"u8.ToArray());
+        bytes.AddRange(BigEndianBytes(width));
+        bytes.AddRange(BigEndianBytes(height));
+        bytes.AddRange([8, 2, 0, 0, 0]); // bit depth, color type, compression, filter, interlace
+        bytes.AddRange([0, 0, 0, 0]); // CRC (not validated by our reader)
+
+        File.WriteAllBytes(path, bytes.ToArray());
+    }
+
+    /// <summary>
+    /// Writes just enough of a JPEG file for <c>ImageEmbedder</c>'s dimension reader (which stops
+    /// as soon as it finds a SOF0 marker) - not a real, decodable image.
+    /// </summary>
+    private static void CreateMinimalJpeg(string path, int width, int height)
+    {
+        var bytes = new List<byte>();
+        bytes.AddRange([0xFF, 0xD8]); // SOI
+        bytes.AddRange([0xFF, 0xC0]); // SOF0
+        bytes.AddRange([0x00, 0x0B]); // segment length (not used by our reader)
+        bytes.Add(0x08); // precision
+        bytes.AddRange(BigEndianUInt16Bytes(height));
+        bytes.AddRange(BigEndianUInt16Bytes(width));
+
+        File.WriteAllBytes(path, bytes.ToArray());
+    }
+
+    private static IEnumerable<byte> BigEndianBytes(int value)
+    {
+        return [(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value];
+    }
+
+    private static IEnumerable<byte> BigEndianUInt16Bytes(int value)
+    {
+        return [(byte)(value >> 8), (byte)value];
     }
 
     private static string GetCellText(TableCell cell)

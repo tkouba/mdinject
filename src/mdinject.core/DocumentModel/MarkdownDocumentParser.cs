@@ -1,3 +1,4 @@
+using System.Text;
 using Markdig;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
@@ -8,12 +9,14 @@ namespace Mdinject.Core.DocumentModel;
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
 /// only the "core skeleton" constructs for now: headings, paragraphs, bullet and numbered lists,
-/// blockquotes, GitHub-style pipe tables, fenced/indented code blocks, horizontal rules, and inline
-/// bold/italic/code/links. Anything else (images, alerts) throws
+/// blockquotes, GitHub-style pipe tables, fenced/indented code blocks, horizontal rules, standalone
+/// images, and inline bold/italic/code/links. Anything else (alerts) throws
 /// <see cref="MarkdownConversionException"/> rather than silently dropping content. Links must
 /// resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful target
 /// once the content is injected into a Word document, so they're rejected rather than silently
-/// kept as broken links.
+/// kept as broken links. Images are the opposite: only a local file path (relative or absolute) is
+/// accepted, since remote fetching isn't supported; an image mixed with other inline content in the
+/// same paragraph is also rejected - it must be the paragraph's only content.
 /// </summary>
 public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
 {
@@ -35,7 +38,7 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
         return block switch
         {
             HeadingBlock heading => new DocumentBlock.Heading(heading.Level, ConvertInlines(heading.Inline)),
-            ParagraphBlock paragraph => new DocumentBlock.Paragraph(ConvertInlines(paragraph.Inline)),
+            ParagraphBlock paragraph => ConvertParagraphOrImage(paragraph),
             ListBlock list => ConvertList(list),
             QuoteBlock quote => ConvertBlockquote(quote),
             Table table => ConvertTable(table),
@@ -43,6 +46,45 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             ThematicBreakBlock => new DocumentBlock.HorizontalRule(),
             _ => throw new MarkdownConversionException($"Unsupported Markdown block type '{block.GetType().Name}'."),
         };
+    }
+
+    private static DocumentBlock ConvertParagraphOrImage(ParagraphBlock paragraph)
+    {
+        // A paragraph whose only content is one image (the overwhelmingly common case for
+        // "![alt](src)" on its own line) becomes a standalone Image block; anything else falls
+        // through to normal paragraph handling, where a *nested* image (mixed with text, inside
+        // emphasis, as link content, ...) is rejected by AppendInlines instead.
+        if (paragraph.Inline is { } inline && inline.FirstChild == inline.LastChild && inline.FirstChild is LinkInline { IsImage: true } image)
+            return ConvertImage(image);
+
+        return new DocumentBlock.Paragraph(ConvertInlines(paragraph.Inline));
+    }
+
+    private static DocumentBlock.Image ConvertImage(LinkInline image)
+    {
+        var source = image.Url;
+        if (String.IsNullOrEmpty(source))
+            throw new MarkdownConversionException("Image has no source.");
+
+        if (Uri.TryCreate(source, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            throw new MarkdownConversionException($"Remote image URLs are not supported: '{source}'. Only local file paths (relative or absolute) are accepted.");
+
+        return new DocumentBlock.Image(source, ExtractPlainText(image));
+    }
+
+    private static string ExtractPlainText(ContainerInline container)
+    {
+        var text = new StringBuilder();
+
+        foreach (var inline in container)
+        {
+            if (inline is LiteralInline literal)
+                text.Append(literal.Content.ToString());
+            else if (inline is ContainerInline nested)
+                text.Append(ExtractPlainText(nested));
+        }
+
+        return text.ToString();
     }
 
     private static DocumentBlock.Table ConvertTable(Table table)
@@ -168,7 +210,7 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
                     break;
 
                 case LinkInline { IsImage: true }:
-                    throw new MarkdownConversionException("Images are not supported yet.");
+                    throw new MarkdownConversionException("An image must be the only content of its paragraph - mixing it with other text or formatting is not supported.");
 
                 case LinkInline link:
                     if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri))

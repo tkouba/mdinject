@@ -2,7 +2,7 @@ namespace Mdinject.Core.DocumentModel;
 
 /// <summary>
 /// A block-level construct in the internal document model, per AGENTS.md:
-/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock / HorizontalRule.
+/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock / HorizontalRule / Image.
 /// </summary>
 public abstract record DocumentBlock
 {
@@ -42,4 +42,13 @@ public abstract record DocumentBlock
     /// resolves to appearance.
     /// </summary>
     public sealed record HorizontalRule : DocumentBlock;
+
+    /// <summary>
+    /// A standalone image (<c>![alt](source)</c> as the only content of its paragraph). Only a
+    /// local file path - relative to the markdown file, or absolute - is supported for
+    /// <paramref name="Source"/>; remote URLs are rejected at parse time. No resizing, cropping, or
+    /// format conversion is performed - the image is embedded exactly as it is on disk, sized to
+    /// its natural pixel dimensions.
+    /// </summary>
+    public sealed record Image(string Source, string AltText) : DocumentBlock;
 }

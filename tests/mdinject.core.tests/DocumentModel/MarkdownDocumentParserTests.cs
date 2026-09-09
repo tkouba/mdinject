@@ -240,9 +240,52 @@ public sealed class MarkdownDocumentParserTests
     }
 
     [Fact]
-    public void Parse_ImageLink_ThrowsMarkdownConversionException()
+    public void Parse_StandaloneImage_ProducesImageBlockWithSourceAndAltText()
+    {
+        var document = parser.Parse("![A diagram](images/diagram.png)");
+
+        var image = Assert.IsType<DocumentBlock.Image>(Assert.Single(document.Blocks));
+
+        Assert.Equal("images/diagram.png", image.Source);
+        Assert.Equal("A diagram", image.AltText);
+    }
+
+    [Fact]
+    public void Parse_ImageAltTextWithFormatting_ExtractsPlainText()
+    {
+        var document = parser.Parse("![A **bold** diagram](images/diagram.png)");
+
+        var image = Assert.IsType<DocumentBlock.Image>(Assert.Single(document.Blocks));
+
+        Assert.Equal("A bold diagram", image.AltText);
+    }
+
+    [Fact]
+    public void Parse_ImageWithAbsoluteLocalPath_ProducesImageBlock()
+    {
+        var document = parser.Parse("![alt](/abs/path/image.png)");
+
+        var image = Assert.IsType<DocumentBlock.Image>(Assert.Single(document.Blocks));
+
+        Assert.Equal("/abs/path/image.png", image.Source);
+    }
+
+    [Fact]
+    public void Parse_RemoteImageUrl_ThrowsMarkdownConversionException()
     {
         Assert.Throws<MarkdownConversionException>(() => parser.Parse("![alt](https://example.com/image.png)"));
+    }
+
+    [Fact]
+    public void Parse_ImageMixedWithText_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("Before ![alt](images/x.png) after."));
+    }
+
+    [Fact]
+    public void Parse_ImageInsideEmphasis_ThrowsMarkdownConversionException()
+    {
+        Assert.Throws<MarkdownConversionException>(() => parser.Parse("*![alt](images/x.png)*"));
     }
 
     [Fact]

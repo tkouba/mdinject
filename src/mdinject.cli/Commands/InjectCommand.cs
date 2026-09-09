@@ -91,7 +91,10 @@ public sealed class InjectCommand(
             var markdown = await File.ReadAllTextAsync(settings.InputPath, cancellationToken);
             var document = _parser.Parse(markdown);
 
-            var warnings = await _injector.InjectAsync(settings.TemplatePath, settings.OutputPath, settings.Placeholder, document, configuration, cancellationToken);
+            // Relative image sources resolve against the markdown file's own directory.
+            var basePath = Path.GetDirectoryName(Path.GetFullPath(settings.InputPath)) ?? Directory.GetCurrentDirectory();
+
+            var warnings = await _injector.InjectAsync(settings.TemplatePath, settings.OutputPath, settings.Placeholder, document, configuration, basePath, cancellationToken);
 
             foreach (var warning in warnings)
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
@@ -99,7 +102,7 @@ public sealed class InjectCommand(
             AnsiConsole.MarkupLine($"[green]Document written to[/] {Markup.Escape(settings.OutputPath)}");
             return 0;
         }
-        catch (Exception ex) when (ex is StyleMappingConfigurationException or MarkdownConversionException or StyleResolutionException or PlaceholderNotFoundException or NotSupportedException)
+        catch (Exception ex) when (ex is StyleMappingConfigurationException or MarkdownConversionException or StyleResolutionException or PlaceholderNotFoundException or NotSupportedException or ImageProcessingException)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             return 1;

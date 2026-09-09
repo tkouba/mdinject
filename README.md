@@ -160,6 +160,12 @@ A construct left out of the configuration doesn't always behave the same way:
   markdown list gets its own numbering definition, so every list restarts at "1." rather than
   continuing a previous one. List items themselves use the resolved `paragraph` style. Nested lists
   and list items spanning more than one paragraph aren't supported yet.
+- **Images** — not part of style mapping either; the paragraph containing the image uses the
+  resolved `paragraph` style. `![alt](path)` must be the only content of its paragraph, and `path`
+  must be a local PNG or JPEG file — relative (resolved against the markdown file's own directory)
+  or absolute. The opposite rule from links: remote URLs are rejected, since fetching them isn't
+  supported. No resizing, cropping, or format conversion — always embedded at its natural pixel
+  size, so aspect ratio is inherently preserved.
 
 Run `mdinject create configuration` (see [Auxiliary commands](#auxiliary-commands)) to generate a
 starter file with everything mdinject can resolve for a specific template already filled in.

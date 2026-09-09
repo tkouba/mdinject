@@ -150,6 +150,32 @@ public sealed class InjectCommandIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_RelativeImageSource_ResolvesAgainstInputFileDirectory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var inputInDirectory = Path.Combine(directory, "doc.md");
+            await File.WriteAllTextAsync(inputInDirectory, "![alt](picture.png)\n");
+            CreateMinimalPng(Path.Combine(directory, "picture.png"), width: 10, height: 5);
+
+            var exitCode = await Program.Main(
+                ["--template", templatePath, "--placeholder", "CONTENT", "--input", inputInDirectory, "--output", outputPath]);
+
+            Assert.Equal(0, exitCode);
+
+            using var result = WordprocessingDocument.Open(outputPath, false);
+            Assert.Single(result.MainDocumentPart!.ImageParts);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Main_UnsupportedMarkdownConstruct_ReturnsOne()
     {
         await File.WriteAllTextAsync(inputPath, "![alt](https://example.com/image.png)\n");
@@ -199,5 +225,28 @@ public sealed class InjectCommandIntegrationTests : IDisposable
         stylesPart.Styles = styles;
         stylesPart.Styles.Save();
         mainPart.Document.Save();
+    }
+
+    /// <summary>
+    /// Writes just enough of a PNG file for <c>ImageEmbedder</c>'s dimension reader (which only
+    /// ever looks at the signature and the IHDR chunk's width/height) - not a real, decodable image.
+    /// </summary>
+    private static void CreateMinimalPng(string path, int width, int height)
+    {
+        var bytes = new List<byte>();
+        bytes.AddRange([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); // PNG signature
+        bytes.AddRange(BigEndianBytes(13)); // IHDR chunk data length
+        bytes.AddRange("IHDR"u8.ToArray());
+        bytes.AddRange(BigEndianBytes(width));
+        bytes.AddRange(BigEndianBytes(height));
+        bytes.AddRange([8, 2, 0, 0, 0]); // bit depth, color type, compression, filter, interlace
+        bytes.AddRange([0, 0, 0, 0]); // CRC (not validated by our reader)
+
+        File.WriteAllBytes(path, bytes.ToArray());
+    }
+
+    private static IEnumerable<byte> BigEndianBytes(int value)
+    {
+        return [(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value];
     }
 }
