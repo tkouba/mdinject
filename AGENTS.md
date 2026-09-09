@@ -202,7 +202,8 @@ Document
  ├─ List(ordered)
  ├─ Blockquote
  ├─ Table
- └─ CodeBlock
+ ├─ CodeBlock
+ └─ HorizontalRule
 ```
 
 The model intentionally contains no presentation properties.
@@ -286,6 +287,13 @@ doesn't allow one to be the last body content or immediately followed by another
 ### Code Blocks
 
 Fenced code blocks.
+
+### Horizontal Rules
+
+`---`/`***`/`___` on its own line. Unlike blockquote/link, there's no canonical Word style name to
+guess, so an unconfigured rule draws a direct paragraph bottom border - the intentional default
+(no warning), not a degraded fallback. Configuring `horizontalRule` replaces the border entirely
+with the named style instead, per `StyleResolver.ResolveHorizontalRuleStyle`.
 
 ### Images
 

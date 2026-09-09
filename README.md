@@ -78,6 +78,7 @@ mdinject --template template.docx --placeholder CONTENT --input installation.md 
 - Blockquotes
 - Tables
 - Code blocks
+- Horizontal rules
 - Images
 - Links
 - Markdown extension: Alerts
@@ -100,6 +101,7 @@ blocks:
   table: "Table Grid"
   warning: "YellowParagraph"
   blockquote: "Quote"
+  horizontalRule: "Horizontal Rule"
 inlines:
   bold: 
   italic:
@@ -145,6 +147,11 @@ A construct left out of the configuration doesn't always behave the same way:
   quoted paragraph is indented directly instead (the same category of exception as bold/italic
   direct formatting) and a warning is printed. Unlike links, there's no way to configure an explicit
   blank opt-out for a block style — an absent `blockquote` key and an empty one behave the same.
+- **Horizontal rules** — also never error for being unconfigured, but unlike blockquotes/links
+  there's no canonical Word style name to guess, so an unconfigured rule draws a direct paragraph
+  bottom border (the genuine default, not a degraded fallback — no warning either). Configuring
+  `horizontalRule` replaces the border entirely with the named style, handing appearance back to
+  the template.
 - **Bullet/numbered lists** — not part of style mapping at all, and never error for being
   unconfigured. mdinject creates its own bullet or decimal numbering definition directly in
   `numbering.xml` for every markdown list and references it from each item via a direct

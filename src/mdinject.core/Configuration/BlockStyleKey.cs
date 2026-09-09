@@ -22,4 +22,5 @@ public enum BlockStyleKey
     Table,
     CodeBlock,
     Blockquote,
+    HorizontalRule,
 }

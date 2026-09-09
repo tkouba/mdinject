@@ -2,7 +2,7 @@ namespace Mdinject.Core.DocumentModel;
 
 /// <summary>
 /// A block-level construct in the internal document model, per AGENTS.md:
-/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock.
+/// Document → Heading / Paragraph / List / Blockquote / Table / CodeBlock / HorizontalRule.
 /// </summary>
 public abstract record DocumentBlock
 {
@@ -35,4 +35,11 @@ public abstract record DocumentBlock
         IReadOnlyList<IReadOnlyList<IReadOnlyList<InlineSpan>>> Rows) : DocumentBlock;
 
     public sealed record CodeBlock(string Text) : DocumentBlock;
+
+    /// <summary>
+    /// A thematic break (<c>---</c>/<c>***</c>/<c>___</c> on its own line). No content or
+    /// presentation properties - see <see cref="Styles.HorizontalRuleStyleResolution"/> for how it
+    /// resolves to appearance.
+    /// </summary>
+    public sealed record HorizontalRule : DocumentBlock;
 }

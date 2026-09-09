@@ -263,4 +263,39 @@ public sealed class StyleResolverTests
         Assert.Throws<StyleResolutionException>(
             () => resolver.ResolveBlockquoteStyle(configuration, TemplateStyles));
     }
+
+    [Fact]
+    public void ResolveHorizontalRuleStyle_Unconfigured_ReturnsDirectFormatting()
+    {
+        // Unlike Blockquote/Link, there's no canonical style name to guess, so this is the
+        // intentional default rather than a degraded fallback - TemplateStyles happening to define
+        // a "Quote" style must not matter here.
+        var resolution = resolver.ResolveHorizontalRuleStyle(StyleMappingConfiguration.Empty, TemplateStyles);
+
+        Assert.IsType<HorizontalRuleStyleResolution.DirectFormatting>(resolution);
+    }
+
+    [Fact]
+    public void ResolveHorizontalRuleStyle_WithConfiguredAlias_ResolvesNamedStyle()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.HorizontalRule] = "H1" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        var resolution = resolver.ResolveHorizontalRuleStyle(configuration, TemplateStyles);
+
+        var namedStyle = Assert.IsType<HorizontalRuleStyleResolution.NamedStyle>(resolution);
+        Assert.Equal("Heading1", namedStyle.StyleId);
+    }
+
+    [Fact]
+    public void ResolveHorizontalRuleStyle_WithUnresolvableConfiguredReference_ThrowsStyleResolutionException()
+    {
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.HorizontalRule] = "No Such Style" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        Assert.Throws<StyleResolutionException>(
+            () => resolver.ResolveHorizontalRuleStyle(configuration, TemplateStyles));
+    }
 }

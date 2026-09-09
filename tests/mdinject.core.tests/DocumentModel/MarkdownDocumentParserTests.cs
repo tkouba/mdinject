@@ -187,6 +187,28 @@ public sealed class MarkdownDocumentParserTests
         Assert.Equal("https://example.com/", span.LinkUrl);
     }
 
+    [Theory]
+    [InlineData("---")]
+    [InlineData("***")]
+    [InlineData("___")]
+    public void Parse_HorizontalRule_ProducesHorizontalRuleBlock(string markdown)
+    {
+        var document = parser.Parse(markdown);
+
+        Assert.IsType<DocumentBlock.HorizontalRule>(Assert.Single(document.Blocks));
+    }
+
+    [Fact]
+    public void Parse_HorizontalRuleBetweenParagraphs_PreservesOrder()
+    {
+        var document = parser.Parse("Before.\n\n---\n\nAfter.");
+
+        Assert.Equal(3, document.Blocks.Count);
+        Assert.IsType<DocumentBlock.Paragraph>(document.Blocks[0]);
+        Assert.IsType<DocumentBlock.HorizontalRule>(document.Blocks[1]);
+        Assert.IsType<DocumentBlock.Paragraph>(document.Blocks[2]);
+    }
+
     [Fact]
     public void Parse_Link_CapturesUrlOnEachSpan()
     {

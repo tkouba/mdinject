@@ -8,7 +8,7 @@ namespace Mdinject.Core.DocumentModel;
 /// <summary>
 /// Converts Markdown text into the internal document model using Markdig. Deliberately supports
 /// only the "core skeleton" constructs for now: headings, paragraphs, bullet and numbered lists,
-/// blockquotes, GitHub-style pipe tables, fenced/indented code blocks, and inline
+/// blockquotes, GitHub-style pipe tables, fenced/indented code blocks, horizontal rules, and inline
 /// bold/italic/code/links. Anything else (images, alerts) throws
 /// <see cref="MarkdownConversionException"/> rather than silently dropping content. Links must
 /// resolve to an absolute URL (http(s), mailto, ...) - relative links have no meaningful target
@@ -40,6 +40,7 @@ public sealed class MarkdownDocumentParser : IMarkdownDocumentParser
             QuoteBlock quote => ConvertBlockquote(quote),
             Table table => ConvertTable(table),
             CodeBlock code => new DocumentBlock.CodeBlock(ExtractCodeText(code)),
+            ThematicBreakBlock => new DocumentBlock.HorizontalRule(),
             _ => throw new MarkdownConversionException($"Unsupported Markdown block type '{block.GetType().Name}'."),
         };
     }

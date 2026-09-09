@@ -12,9 +12,11 @@ namespace Mdinject.Core.Styles;
 ///   guess is an error (via <see cref="StyleResolver.ResolveBlockStyle"/>); for
 ///   <see cref="BlockStyleKey.Blockquote"/> it isn't, since <see cref="StyleResolver.ResolveBlockquoteStyle"/>
 ///   falls back further to direct paragraph indentation with a warning instead of erroring.
-/// Anything in neither set (currently only <see cref="BlockStyleKey.CodeBlock"/>) has no default at
-/// all: it must be explicitly configured, and unconfigured use throws only once the construct is
-/// actually encountered.
+/// Anything in neither set has no default and no canonical name to guess:
+/// <see cref="BlockStyleKey.CodeBlock"/> must be explicitly configured and errors otherwise (via
+/// <see cref="StyleResolver.ResolveBlockStyle"/>); <see cref="BlockStyleKey.HorizontalRule"/> never
+/// errors either way, since <see cref="StyleResolver.ResolveHorizontalRuleStyle"/> falls back to a
+/// direct paragraph border - the genuine intentional default, not a degraded one, so it doesn't warn.
 /// </summary>
 internal static class BlockStyleKindRegistry
 {
@@ -32,6 +34,7 @@ internal static class BlockStyleKindRegistry
         [BlockStyleKey.Paragraph] = StyleKind.Paragraph,
         [BlockStyleKey.CodeBlock] = StyleKind.Paragraph,
         [BlockStyleKey.Blockquote] = StyleKind.Paragraph,
+        [BlockStyleKey.HorizontalRule] = StyleKind.Paragraph,
         [BlockStyleKey.Table] = StyleKind.Table,
     };
 

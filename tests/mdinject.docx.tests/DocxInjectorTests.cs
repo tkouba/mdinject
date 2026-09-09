@@ -427,6 +427,53 @@ public sealed class DocxInjectorTests : IDisposable
     }
 
     [Fact]
+    public async Task InjectAsync_HorizontalRuleWithoutConfiguration_AppliesDirectBottomBorder()
+    {
+        var document = new MarkdownDocument([new DocumentBlock.HorizontalRule()]);
+
+        var warnings = await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, StyleMappingConfiguration.Empty);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraphs = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().ToList();
+        var paragraph = paragraphs.Single(p => p.ParagraphProperties?.ParagraphBorders != null);
+
+        var bottomBorder = paragraph.ParagraphProperties!.ParagraphBorders!.BottomBorder!;
+        Assert.Equal(BorderValues.Single, bottomBorder.Val!.Value);
+        Assert.Null(paragraph.ParagraphProperties.ParagraphStyleId);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public async Task InjectAsync_HorizontalRuleWithConfiguredStyle_AppliesNamedStyleWithoutBorder()
+    {
+        var document = new MarkdownDocument([new DocumentBlock.HorizontalRule()]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.HorizontalRule] = "Code" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        await injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration);
+
+        using var result = WordprocessingDocument.Open(outputPath, false);
+        var paragraph = result.MainDocumentPart!.Document!.Body!.Elements<Paragraph>().Single(p => p.ParagraphProperties?.ParagraphStyleId?.Val == "CodeParagraph");
+
+        Assert.Null(paragraph.ParagraphProperties!.ParagraphBorders);
+    }
+
+    [Fact]
+    public async Task InjectAsync_HorizontalRuleWithUnresolvableConfiguredReference_ThrowsStyleResolutionException()
+    {
+        var document = new MarkdownDocument([new DocumentBlock.HorizontalRule()]);
+
+        var configuration = new StyleMappingConfiguration(
+            new Dictionary<BlockStyleKey, string> { [BlockStyleKey.HorizontalRule] = "No Such Style" },
+            new Dictionary<InlineStyleKey, string?>());
+
+        await Assert.ThrowsAsync<StyleResolutionException>(
+            () => injector.InjectAsync(templatePath, outputPath, "CONTENT", document, configuration));
+    }
+
+    [Fact]
     public async Task InjectAsync_UnconfiguredCodeBlock_ThrowsStyleResolutionException()
     {
         var document = new MarkdownDocument([new DocumentBlock.CodeBlock("x")]);

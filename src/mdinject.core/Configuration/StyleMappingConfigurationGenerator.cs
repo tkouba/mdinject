@@ -45,7 +45,7 @@ public sealed class StyleMappingConfigurationGenerator : IStyleMappingConfigurat
         if (BlockStyleKindRegistry.DefaultNames.TryGetValue(key, out var nameGuess))
             return StyleLookup.FindByReference(nameGuess, kind, templateStyles);
 
-        // CodeBlock: nothing to guess.
+        // CodeBlock and HorizontalRule: nothing to guess.
         return null;
     }
 

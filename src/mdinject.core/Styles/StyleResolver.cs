@@ -103,4 +103,21 @@ public sealed class StyleResolver : IStyleResolver
             "Template has no 'Quote' style; blockquotes will be indented directly instead. " +
             "Configure 'blockquote' explicitly to silence this warning.");
     }
+
+    public HorizontalRuleStyleResolution ResolveHorizontalRuleStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    {
+        if (configuration.Blocks.TryGetValue(BlockStyleKey.HorizontalRule, out var configuredReference))
+        {
+            var configuredStyle = StyleLookup.FindByReference(configuredReference, StyleKind.Paragraph, templateStyles);
+            if (configuredStyle == null)
+                throw new StyleResolutionException($"Could not resolve configured style '{configuredReference}' for block 'HorizontalRule' in the template.");
+
+            return new HorizontalRuleStyleResolution.NamedStyle(configuredStyle.Id);
+        }
+
+        // Unlike Blockquote/Link, there's no canonical Word style name to guess for a horizontal
+        // rule - direct paragraph border formatting is the genuine intentional default, not a
+        // degraded fallback, so this never warns.
+        return new HorizontalRuleStyleResolution.DirectFormatting();
+    }
 }

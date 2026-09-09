@@ -12,8 +12,8 @@ namespace Mdinject.Docx;
 /// <summary>
 /// Injects a parsed <see cref="MarkdownDocument"/> into a copy of a Word template at a named
 /// placeholder paragraph. Supports headings, paragraphs, bullet/numbered lists, blockquotes,
-/// tables, code blocks, and inline bold/italic/code/links so far - anything else in the document
-/// model throws <see cref="NotSupportedException"/> until a later pass adds it.
+/// tables, code blocks, horizontal rules, and inline bold/italic/code/links so far - anything else
+/// in the document model throws <see cref="NotSupportedException"/> until a later pass adds it.
 /// </summary>
 public sealed class DocxInjector : IDocumentInjector
 {
@@ -128,6 +128,10 @@ public sealed class DocxInjector : IDocumentInjector
 
             case DocumentBlock.CodeBlock codeBlock:
                 yield return BuildCodeParagraph(codeBlock, configuration, templateStyles);
+                yield break;
+
+            case DocumentBlock.HorizontalRule:
+                yield return BuildHorizontalRuleParagraph(configuration, templateStyles);
                 yield break;
 
             default:
@@ -290,6 +294,20 @@ public sealed class DocxInjector : IDocumentInjector
         }
 
         return paragraph;
+    }
+
+    private Paragraph BuildHorizontalRuleParagraph(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles)
+    {
+        var resolution = styleResolver.ResolveHorizontalRuleStyle(configuration, templateStyles);
+
+        if (resolution is HorizontalRuleStyleResolution.NamedStyle namedStyle)
+            return new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = namedStyle.StyleId }));
+
+        // No configured style: draw the rule directly as a paragraph bottom border, the same
+        // "Word's own direct formatting" exception bold/italic get, since no named style is
+        // available to guess (unlike blockquote/link).
+        var border = new BottomBorder { Val = BorderValues.Single, Size = 6, Space = 1, Color = "auto" };
+        return new Paragraph(new ParagraphProperties(new ParagraphBorders(border)));
     }
 
     private OpenXmlElement BuildRunOrHyperlink(InlineSpan span, StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles, MainDocumentPart mainPart, List<string> warnings)

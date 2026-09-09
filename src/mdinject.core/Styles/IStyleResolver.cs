@@ -30,4 +30,12 @@ public interface IStyleResolver
     /// </summary>
     /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
     BlockquoteStyleResolution ResolveBlockquoteStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
+
+    /// <summary>
+    /// Resolves the horizontal rule block: a named style when configured, or a direct paragraph
+    /// border when not - see <see cref="HorizontalRuleStyleResolution"/>. Never errors for being
+    /// unconfigured; no canonical style name is guessed.
+    /// </summary>
+    /// <exception cref="StyleResolutionException">A configured reference matches no style in the template.</exception>
+    HorizontalRuleStyleResolution ResolveHorizontalRuleStyle(StyleMappingConfiguration configuration, IReadOnlyList<StyleInfo> templateStyles);
 }
