@@ -6,7 +6,22 @@
     <AssemblyName>mdinject</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mdinject</ToolCommandName>
+    <PackageId>mdinject</PackageId>
+    <Authors>Tomas Kouba</Authors>
+    <Description>Injects Markdown content into existing Word DOCX templates using configurable style mappings.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/tkouba/mdinject</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tkouba/mdinject</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>markdown;docx;word;cli;dotnet-tool</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\mdinject.core\mdinject.core.csproj" />
